@@ -360,39 +360,28 @@ gbwt::size_type endmarkerSampleFastLocate(const gbwt::FastLocate& r, gbwt::size_
     if (r.seqId(r.samples[max]) == i) //common case in large bidirectional gbwts
         return r.samples[max]; 
 
-    //std::cout << "Binary searching for path " << i << std::endl;
     gbwt::size_type first = *(--std::lower_bound(r.samples.begin(), r.samples.begin()+max+1, r.pack(i+1,0)));
-    //std::cout << "first (" << r.seqId(first) << ',' << r.seqOffset(first);
     while (r.seqId(first) != i){
         first = r.locateNext(first);
-        //std::cout << "first (" << r.seqId(first) << ',' << r.seqOffset(first);
     }
     return first;
-    //return r.last.predecessor(r.pack(i, r.header.max_length))->second;
 }
 
 void AddMatchesFastLocate(const gbwt::GBWT& x, const gbwt::FastLocate& r, const gbwt::vector_type& Q, 
         gbwt::size_type k, gbwt::size_type len, 
         std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type,gbwt::size_type>>& matches){
-    //std::cout << "AddMatchesFastLocate called: " << k << ' ' << len << std::endl;
     gbwt::size_type first = 0;
     gbwt::SearchState ss = r.find(Q.begin()+k, Q.begin()+k+len, first);
-    //std::cout << "Result of find: searchstate: " << ss << ", first: " << first << std::endl;
-    //std::vector<gbwt::size_type> s = r.locate(ss, first);
-    //std::cout << "Result of locate: searchstate: " << s << std::endl;
     gbwt::size_type plen;
     for (unsigned i = 0; i<ss.size(); ++i){
         plen = r.seqOffset(endmarkerSampleFastLocate(r, r.seqId(first))); 
         matches.emplace_back(k, len, r.seqId(first), plen - r.seqOffset(first) - len);
-        //std::cout << r.seqId(first) << " length: " << plen << std::endl;
         first = r.locateNext(first);
     }
 }
 
 gbwt::size_type endmarkerSampleFastLCP(const FastLCP& l, gbwt::size_type i){
     auto iter = l.first.predecessor(l.rindex->pack(i+1, 0)-1);
-    //std::cout << l.first.size() << std::endl 
-        //<< l.samples_lcp.size() << std::endl;
     return iter->second + l.samples_lcp[iter->first];
 }
 
@@ -447,17 +436,9 @@ void AddMatchesFastLCPLFGBWT(const lf_gbwt::GBWT& lfg, const gbwt::FastLocate& r
 
 void AddLongMatchesWholeBlock(const gbwt::FastLocate& r, const FastLCP& l, std::map<gbwt::size_type, gbwt::size_type>& inBlock, const gbwt::size_type currQsInd, const gbwt::vector_type& Qs, 
         const gbwt::range_type block, const gbwt::size_type topSuff, std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type,gbwt::size_type>>& matches) {
-    //std::cout << "AddLongMatchesWholeBlock" << std::endl;
     gbwt::size_type suff;
     for (gbwt::size_type blockInd = block.first; blockInd != block.second + 1; ++blockInd){
         suff = (blockInd == block.first)? topSuff : r.locateNext(suff);
-        //std::cout << "blockInd " << blockInd << " suff (" << r.seqId(suff) << ',' << r.seqOffset(suff) << ')' << std::endl;
-        //std::cout << "inBlock ";
-        //for (auto it = inBlock.begin(); it != inBlock.end(); ++it) {
-        //    gbwt::size_type t = it->first - Qs.size() + currQsInd;
-        //    std::cout << "\t(" << r.seqId(t) << ',' << r.seqOffset(t) << ')';
-        //}
-        //std::cout << std::endl;
         auto it = inBlock.find(suff + Qs.size() - currQsInd);
         assert(it != inBlock.end());
         gbwt::size_type plen = r.seqOffset(endmarkerSampleFastLCP(l, r.seqId(suff)));
@@ -467,86 +448,6 @@ void AddLongMatchesWholeBlock(const gbwt::FastLocate& r, const FastLCP& l, std::
 }
         
 
-/*
-//output suffixes in block that are leaving the block from Qs[currQsInd] to Qs[currQsInd-1], assumes 0<currQsInd<currQsInd.size()
-//returns block i-1 of length L+1 and top and bottom suffixes of this block (inclusive)
-//if block is empty, top suffix are invalid and returned block is arbitrary empty block
-//assumes block is valid
-std::tuple<gbwt::range_type,gbwt::size_type,gbwt::size_type>
-AddLongMatchesFastLCP(const gbwt::GBWT& g, const gbwt::FastLocate& r, const FastLCP& l, std::map<gbwt::size_type, gbwt::size_type>& inBlock, const gbwt::size_type currQsInd, 
-        const gbwt::vector_type& Qs, const gbwt::range_type block, const gbwt::size_type topSuff, const gbwt::size_type botSuff, std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type,gbwt::size_type>>& matches) {
-    std::cout << "AddLongMatchesFastLCP currQsInd " << currQsInd << " Qs[currQsInd] " << Qs[currQsInd] << " Qs[currQsInd-1] " << Qs[currQsInd-1] << " block " << "[" << block.first << ',' << block.second << "] topSuff (" << r.seqId(topSuff) << ',' << r.seqOffset(topSuff) << ") botSuff (" << r.seqId(botSuff)  << ',' << r.seqOffset(botSuff) << ')' << std::endl;
-    if (gbwt::Range::empty(block)) { return {gbwt::Range::empty_range(), gbwt::invalid_offset(), gbwt::invalid_offset()}; }
-    assert(currQsInd != 0);
-    gbwt::size_type newTopSuff = gbwt::invalid_offset(), newBotSuff = gbwt::invalid_offset(), lastOutrankRunId = gbwt::invalid_offset();
-    gbwt::range_type newBlock;
-    gbwt::CompressedRecord rec = g.record(Qs[currQsInd]);
-    gbwt::size_type outrank = rec.edgeTo(Qs[currQsInd-1]);
-    if (outrank >= rec.outdegree()) {
-        AddLongMatchesWholeBlock(r, l, inBlock, currQsInd, Qs, block, topSuff, matches);
-        return {gbwt::Range::empty_range(), gbwt::invalid_offset(), gbwt::invalid_offset()};
-    }
-    
-    gbwt::CompressedRecordRankIterator iter(rec, outrank);
-    gbwt::size_type firstRunId = 0;
-
-    std::cout << "outrank " << outrank << " iter.runId() " << iter.runId() << " firstRunId " << firstRunId << " iter (" << iter->first << ',' << iter->second << ") iter.offset() " << iter.offset() <<
-        " iter.rank() " << iter.rank() << std::endl;
-
-    //iter.readPast(block.first);
-    while(iter.offset() <= block.first)
-    {
-        assert(!iter.end());
-        ++iter;
-        //this->curr_offset = this->next_offset;
-        //this->readUnsafe();
-    }
-    firstRunId = (iter->first == 0 && rec.edgeTo(gbwt::ENDMARKER) == 0)? iter.runId() - iter->second + 1 : iter.runId();
-    std::cout << "outrank " << outrank << " iter.runId() " << iter.runId() << " firstRunId " << firstRunId << " iter (" << iter->first << ',' << iter->second << ") iter.offset() " << iter.offset() <<
-        " iter.rank() " << iter.rank() << std::endl;
-    newBlock.first = iter.rank();
-    if (iter->first == outrank) { newBlock.first -= iter.offset() - block.first; newTopSuff = topSuff - 1; }
-
-    std::cout << "Starting while loop" << std::endl;
-    for (; !iter.end() && iter.offset() - iter->second < block.second + 1; ++iter) {
-        firstRunId = (iter->first == 0 && rec.edgeTo(gbwt::ENDMARKER) == 0)? iter.runId() - iter->second + 1 : iter.runId();
-        if(iter.offset() > block.second) {
-            newBlock.second = iter.rank()-1;
-            if (iter->first == outrank) { newBlock.second -= iter.offset() - 1 - block.second; newBotSuff = botSuff -1; }
-        }
-        std::cout << "outrank " << outrank << " iter.runId() " << iter.runId() << " firstRunId " << firstRunId << " iter (" << iter->first << ',' << iter->second << ") iter.offset() " << iter.offset() <<
-            " iter.rank() " << iter.rank() << std::endl;
-        if (iter->first == outrank) { 
-            if (newTopSuff == gbwt::invalid_offset()) { newTopSuff = l.getSample(Qs[currQsInd], firstRunId) - 1 ; }
-            lastOutrankRunId = iter.runId();
-            continue; 
-        }
-        gbwt::size_type start = std::max(block.first, iter.offset() - iter->second),
-            end = std::min(block.second+1, iter.offset()),
-            suff = (iter.offset() - iter->second < block.first)? topSuff : l.getSample(Qs[currQsInd], firstRunId);
-        std::cout << "Starting for loop in while" << std::endl;
-        for (gbwt::size_type i = start; i < end; ++i) {
-            suff = (i == start)? suff : r.locateNext(suff);
-            auto it = inBlock.find(suff + Qs.size() - currQsInd);
-            assert(it != inBlock.end());
-            gbwt::size_type plen = r.seqOffset(endmarkerSampleFastLCP(l, r.seqId(suff)));
-            matches.emplace_back(Qs.size() - 1 - it->second, it->second - currQsInd, r.seqId(suff), plen - r.seqOffset(suff) - (it->second - currQsInd));
-            inBlock.erase(it);
-        }
-        std::cout << "Finished for loop in while" << std::endl;
-    }
-    std::cout << "Ending while loop" << std::endl;
-
-    std::cout << "outrank " << outrank << " iter.runId() " << iter.runId() << " firstRunId " << firstRunId << " iter (" << iter->first << ',' << iter->second << ") iter.offset() " << iter.offset() <<
-        " iter.rank() " << iter.rank() << std::endl;
-    
-    if (lastOutrankRunId == gbwt::invalid_offset()) { return {gbwt::Range::empty_range(), gbwt::invalid_offset(), gbwt::invalid_offset()}; }
-    else if (newBotSuff == gbwt::invalid_offset()) { newBotSuff = l.getSampleBot(Qs[currQsInd], lastOutrankRunId) - 1; }
-
-    return {newBlock, newTopSuff, newBotSuff};
-}
-*/
-
 //output suffixes in block that are leaving the block from Qs[currQsInd] to Qs[currQsInd-1], assumes 0<currQsInd<currQsInd.size()
 //returns block i-1 of length L+1 and top and bottom suffixes of this block (inclusive)
 //if block is empty, top and bot suffix are invalid and returned block is arbitrary empty block
@@ -554,7 +455,6 @@ AddLongMatchesFastLCP(const gbwt::GBWT& g, const gbwt::FastLocate& r, const Fast
 std::tuple<gbwt::range_type,gbwt::size_type,gbwt::size_type>
 AddLongMatchesFastLCP(const gbwt::GBWT& g, const gbwt::FastLocate& r, const FastLCP& l, std::map<gbwt::size_type, gbwt::size_type>& inBlock, const gbwt::size_type currQsInd, 
         const gbwt::vector_type& Qs, const gbwt::range_type block, const gbwt::size_type topSuff, const gbwt::size_type botSuff, std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type,gbwt::size_type>>& matches) {
-    //std::cout << "AddLongMatchesFastLCP currQsInd " << currQsInd << " Qs[currQsInd] " << Qs[currQsInd] << " Qs[currQsInd-1] " << Qs[currQsInd-1] << " block " << "[" << block.first << ',' << block.second << "] topSuff (" << r.seqId(topSuff) << ',' << r.seqOffset(topSuff) << ") botSuff (" << r.seqId(botSuff)  << ',' << r.seqOffset(botSuff) << ')' << std::endl;
     if (gbwt::Range::empty(block)) { return {gbwt::Range::empty_range(), gbwt::invalid_offset(), gbwt::invalid_offset()}; }
     assert(currQsInd != 0);
     assert(inBlock.size() == gbwt::Range::length(block));
@@ -621,11 +521,6 @@ AddLongMatchesFastLCP(const gbwt::GBWT& g, const gbwt::FastLocate& r, const Fast
         ++topIter;
     } 
     assert((firstOutrankRunId) != gbwt::invalid_offset() && lastOutrankRunId != gbwt::invalid_offset());
-    //if (topIter->first == outrank) {
-    //    lastOutrankRunId = topIter.runId();
-    //    if (firstOutrankRunId == gbwt::invalid_offset()) { firstOutrankRunId = topIter.runId(); }
-    //}
-    //else { AddLongMatchesWholeBlock(r, l, inBlock, currQsInd, Qs, {std::max(block.first, topIter.offset() - topIter->second), std::min(block.second, topIter.offset() - 1)}, ((block.first > topIter.offset() - topIter->second)? topSuff : l.getSample(from, topIter.runId())), matches); }
 
     return {newBlock, ((topSuffContinue)? topSuff - 1 : l.getSample(from, firstOutrankRunId) - 1), ((botSuffContinue)? botSuff - 1 : l.getSampleBot(from, lastOutrankRunId) - 1)};
 }
@@ -635,24 +530,19 @@ LongMatchesFastLCPInitializeEmptyBlock(const gbwt::FastLocate& r, const FastLCP&
         const gbwt::size_type nodePos, const gbwt::node_type node, const gbwt::size_type nodeSize, const gbwt::size_type bSuff, const gbwt::size_type lcpa, const gbwt::size_type lcpb, 
         const gbwt::size_type queryLen, const gbwt::size_type queryPos, const gbwt::size_type L) {
     assert(nodePos <= nodeSize);
-    //assert bSuff is invalid iff nodepos is bottom of node
-    //assert((bSuff >= r.pack(g.sequences(), 0)) == (nodePos == nodeSize));
     assert((lcpa == 0) == (nodePos == 0));
     assert((lcpb == 0) == (nodePos == nodeSize));
     assert(lcpa == L || lcpb == L);
     assert(lcpa <= L && lcpb <= L);
     gbwt::range_type block;
     gbwt::size_type suff;
-    //std::cout << "nodePos " << nodePos << " bSuff " << bSuff << std::endl;
     if (lcpb == L) {
-        //std::cout << "adding below" << std::endl;
         assert(lcpb == L);
         assert(nodePos < nodeSize);
         block = {nodePos, nodePos};
         suff = bSuff;
     }
     else {
-        //std::cout << "adding above" << std::endl;
         assert(lcpa == L);
         block = {nodePos-1, nodePos-1};
         suff = (nodePos == nodeSize)? l.locateLast(node) : l.locatePrev(bSuff);
@@ -670,7 +560,6 @@ LongMatchesExpandNonEmptyBlock(const gbwt::FastLocate& r, const FastLCP& l, std:
         const gbwt::size_type nodeSize, const gbwt::range_type block, const gbwt::size_type topSuff, const gbwt::size_type botSuff,
         const gbwt::size_type queryLen, const gbwt::size_type queryPos, const gbwt::size_type L) {
     assert(block.first < nodeSize && block.second < nodeSize && block.second >= block.first);
-    //assert(topSuff < r.pack(g.sequences(), 0) && botSuff < r.pack(g.sequences(), 0));
     gbwt::range_type newBlock = block;
     gbwt::size_type newTopSuff = topSuff, newBotSuff = botSuff, nextSuff;
     bool succeed;
@@ -699,7 +588,6 @@ LongMatchesExpandNonEmptyBlock(const gbwt::FastLocate& r, const FastLCP& l, std:
 std::tuple<gbwt::range_type,gbwt::size_type,gbwt::size_type>
 AddLongMatchesLFGBWT(const lf_gbwt::GBWT& lfg, const gbwt::FastLocate& r, const FastLCP& l, std::map<gbwt::size_type, gbwt::size_type>& inBlock, const gbwt::size_type currQsInd, 
         const gbwt::vector_type& Qs, const gbwt::range_type block, const gbwt::size_type topSuff, const gbwt::size_type botSuff, std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type,gbwt::size_type>>& matches) {
-    //std::cout << "AddLongMatchesFastLCP currQsInd " << currQsInd << " Qs[currQsInd] " << Qs[currQsInd] << " Qs[currQsInd-1] " << Qs[currQsInd-1] << " block " << "[" << block.first << ',' << block.second << "] topSuff (" << r.seqId(topSuff) << ',' << r.seqOffset(topSuff) << ") botSuff (" << r.seqId(botSuff)  << ',' << r.seqOffset(botSuff) << ')' << std::endl;
     if (gbwt::Range::empty(block)) { return {gbwt::Range::empty_range(), gbwt::invalid_offset(), gbwt::invalid_offset()}; }
     assert(currQsInd != 0);
     assert(inBlock.size() == gbwt::Range::length(block));
