@@ -50,13 +50,6 @@ struct FastLCP{
         size_type runId = (this->rindex->index->toComp(node)+1 == this->rindex->index->effective())?
             samples_bot.size()-1:
             this->rindex->comp_to_run[this->rindex->index->toComp(node)+1] - 1;
-        //std::cout << "samples_bot.size " << this->samples_bot.size()
-            //<< " samples.size " << this->rindex->samples.size()
-            //<< " runId " << runId
-            //<< " node " << node
-            //<< " this->globalRunId(node+1, 0) - 1 " << this->globalRunId(node+1, 0) - 1 
-            //<< " samples_bot.size()-1: " << samples_bot.size()-1
-            //<< std::endl;
         return this->samples_bot[runId];
     }
 
@@ -102,7 +95,6 @@ FastLCP::size_type FastLCP::locatePrev(size_type next) const{
 
 FastLCP::size_type FastLCP::LCP(size_type suff) const{
     auto iter = this->first.predecessor(suff);
-    //return this->samples_lcp[this->first_to_run[iter->first]] - (suff - iter->second);
     return this->samples_lcp[iter->first] - (suff - iter->second);
 }
 
@@ -123,10 +115,6 @@ FastLCP::FastLCP(const gbwt::FastLocate& source) : rindex(&source) {
 
     // Determine the number of logical runs before each record.
     size_type total_runs = this->rindex->samples.size();
-    //this->rindex->index->bwt.forEach([&](size_type comp, const CompressedRecord& record)
-            //{
-            //total_runs += record.runs().second;
-            //});
     if(Verbosity::level >= Verbosity::FULL)
     {
         std::cerr << msgPrefix << total_runs << " logical runs in the GBWT" << std::endl;
@@ -338,10 +326,6 @@ FastLCP::FastLCP(const lf_gbwt::GBWT& lfg, const gbwt::FastLocate& r) : rindex(&
 
     // Determine the number of logical runs before each record.
     size_type total_runs = this->rindex->samples.size();
-    //this->rindex->index->bwt.forEach([&](size_type comp, const CompressedRecord& record)
-            //{
-            //total_runs += record.runs().second;
-            //});
     if(Verbosity::level >= Verbosity::FULL)
     {
         std::cerr << msgPrefix << total_runs << " logical runs in the GBWT" << std::endl;

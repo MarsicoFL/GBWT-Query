@@ -92,23 +92,7 @@ class CompText{
     }
 
     const static std::string EXTENSION; //.compText
-    //for debugging. remove later.
-    //std::vector<size_type> temp_sl;
-    /*
-    gbwt::vector_type TrueSl(const gbwt::vector_type & fullText) const {
-        gbwt::vector_type t;
-        size_type s_l = this->s_0 >> levels.size();
-        for (size_type i = 0; i < temp_sl.size(); ++i){
-            //std::cout << temp_sl[i] << ':';
-            for (size_type j = temp_sl[i] - s_l; j - temp_sl[i] + s_l < 2*s_l; ++j)
-                if (j < fullText.size())
-                    t.push_back(fullText[j]);
-                else 
-                    t.push_back(0);
-        }
-        return t;
-    }
-    */
+
     template<class T> bool compareTextSamples(const T & toCompare) const {
         if (toCompare.size() != this->textSamples.size())
             return false;
@@ -133,15 +117,8 @@ class CompText{
             #pragma omp critical
             {
                 good = good && seqGood;
-                //std::cout << "seq i done in " << gbwt::readTimer() - start << " seconds" << std::endl;
             }
         }
-        //do {
-        //    if (position.first != this->at(--ind))
-        //        return false;
-        //    this->fullLF(position, sequence);
-        //} while (ind != 0 && sequence != size_type(-1));
-        //return ind == 0 && sequence == size_type(-1);
         return good;
     }
 
@@ -215,12 +192,7 @@ CompText::CompText(const FastLCP & l): source(&l) {
         for (const auto & a : temp)
             if (sampleLocations.size() == 0 || a != sampleLocations.back())
                 sampleLocations.push_back(a);
-//        std::cout << "sampleLocations ";
-//           for (auto a:  sampleLocations) 
-//              std::cout << a << ' ';
-//        std::cout << std::endl;
     }
-    //this->temp_sl = sampleLocations;
 
 
     //sizeEstimate[i] is an estimate for the size of the whole data structure if it had i intermediate levels
@@ -257,12 +229,6 @@ CompText::CompText(const FastLCP & l): source(&l) {
         {
             std::cerr << "CompText::CompText(): Building block tree" << std::endl;
         }
-        //build block tree 
-
-        //auto ithStart = [] (size_type i, size_type n, size_type r) {
-        //    //assumes 0 <= i <= r <= n
-        //    return i*(n/r) + ((i*(n%r))/r);
-        //};
 
         double firstLevelStart = gbwt::readTimer();
         {
@@ -287,16 +253,12 @@ CompText::CompText(const FastLCP & l): source(&l) {
                     std::cout << "On run " << i << " after " << gbwt::readTimer() - runStart << " seconds" << std::endl;
                     runStart = gbwt::readTimer();
                 }
-//                std::cout << "start " << start << " end " << end << std::endl << "sampleLocations.size() " << sampleLocations.size() << std::endl;
-//                std::cout << "run " << i << std::endl;
                 //T.clear();
                 for (size_type u = end; u != start;){
                     --u;
                     //T is reversed to allow searching using gbwt::GBWT::find
                     T[end-1-u] = position.first;
                     for (size_type j = 0, s_j = this->s_0; s_j != 1; ++j, s_j /= 2){
-                        //VERIFY CORRECTNESS OF THIS
-                        //check if current position can fill any values of blockPositionStarts
                         auto safeMinus = [] (size_type a, size_type b) { return (a > b)? a-b : 0; };
                         size_type sjplus1 = s_j/2;
                         auto it = sampleLocations.begin();
@@ -316,61 +278,43 @@ CompText::CompText(const FastLCP & l): source(&l) {
 
                     this->fullLF(position, sequence);
                 }
-//                std::cout << "LF done " << std::endl;
                 //assign block i to a run, block i corresponds to [i*s_0, (i+1)*s_0) = [start, end)
                 //where s_0 is the smallest power of 2 larger than or equal to \ceiling(n/r) (and is the block size of the first level of the tree
                 //where n is the total length and r is the number of GBWT logical runs
                 auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), start);
                 if (it != sampleLocations.end() && *it < end){
-//                    std::cout << "no LF needed, marker found" << std::endl;
                     firstLevel.mapsTo[i] = it - sampleLocations.begin();
                     firstLevel.offset[i] = start + this->s_0 - *it;
                     usedCount += !sampleUsed[firstLevel.mapsTo[i]];
                     sampleUsed[firstLevel.mapsTo[i]] = true;
-//                    std::cout << " mapsto " << firstLevel.mapsTo[i] << " offset " << firstLevel.offset[i] << std::endl;
                     continue;
                 }
                 //all endmarkers  are sampled therefore [start, end) contains no endmarkers
                 //if [start, end) is not a primary occurrence of T[start, end).
                 //Here we search for a primary occurence
 
-//                std::cout << "LF needed, marker not found" << std::endl;
                     
-                //assert(this->s_0 == end-start);
                 size_type first = 0;
-//                std::cout << "looking for T["<< start << ',' << end << ") = ";
-//                    for (auto a : T)
-//                       std::cout << a << ' ';
-//                std::cout  << " in GBWT" << std::endl;
                 gbwt::SearchState range = l.rindex->find(T.begin(), T.end(), first);
 
                 for (size_type j = 0, a = first; j < range.size(); ++j, first = this->source->rindex->locateNext(first)){
-//                    std::cout << "found in range, seqId " << l.rindex->seqId(a) << " offset " << l.rindex->seqOffset(a);
                     a = this->FLsuffToTrueSuff(a);
-//                    std::cout << " true suff " << a << std::endl; 
                     auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), a);
                     if (it != sampleLocations.end() && *it < a + (end-start)){
-//                        std::cout << " is in range, *it " << *it;
                         firstLevel.mapsTo[i] = it - sampleLocations.begin();
                         firstLevel.offset[i] = a + this->s_0 - *it;
-//                        std::cout << " mapsto " << firstLevel.mapsTo[i] << " offset " << firstLevel.offset[i] << std::endl;
                         usedCount += !sampleUsed[firstLevel.mapsTo[i]];
                         sampleUsed[firstLevel.mapsTo[i]] = true;
                         break;
                     }
                 }
             }
-            //need to compress mapsto to rank using sampleUnused here. Do once compressing block tree
+            //pruning idea: //need to compress mapsto to rank using sampleUnused here. Do once compressing block tree
             if (gbwt::Verbosity::level>= gbwt::Verbosity::FULL)
             {
                 std::cerr << "CompText::CompText(): Out of " << sampleLocations.size() << " sampled locations, " << usedCount << " unique blocks were mapped to by the " << topLevelRuns << " blocks in the first level of the block tree." << std::endl;
             }
         }
-//        std::cout << "firstLevel ";
-//        for (size_type i = 0; i < firstLevel.mapsTo.size(); ++i)
-//            std::cout << '(' << firstLevel.mapsTo[i] << ',' << firstLevel.offset[i] << ") ";
-//        std::cout << std::endl;
-//        std::cout << "before compression firstLevel size " << std::flush << sdsl::size_in_bytes(firstLevel) << std::endl;
         firstLevel.compress();
 
         //build the rest of the levels
@@ -410,50 +354,33 @@ CompText::CompText(const FastLCP & l): source(&l) {
                 //first half block
                 size_type start = (k < s_l)? 0 : k-s_l;
                 size_type end = (k < slplus1)? 0 : k-slplus1;
-//                std::cout << "first half block k " << k << " s_l " << s_l << " slplus1 " << slplus1 << " start "
-//                    << start << " end " << end << std::endl;
                 if (end > start) {
                     auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), start);
                     if (it != sampleLocations.end() && *it < end){
-//                        std::cout << "no LF needed, marker found" << std::endl;
                         levels.back().mapsTo[firstBlock] = it - sampleLocations.begin();
                         levels.back().offset[firstBlock] = start + slplus1 - *it;
-                        //offset setting above is a possible bug/problem area here and other places it is
-                        //set/used (construction/query respectively)
                         usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
                         sampleUsed[levels.back().mapsTo[firstBlock]] = true;
                     }
                     else{
-                        //never happens at the beginnning or end, so the block is always of size s_l
-                        //assert(end-start == s_l);
-//                        std::cout << "LF needed, marker not found" << std::endl;
                         gbwt::vector_type T(end-start);
                         gbwt::edge_type position = blockPositionStarts[l][4*i];
                         size_type sequence = this->pathStarts.predecessor(end)->first;
                         this->fullLF(position, sequence);
                         for (size_type u = end; u != start; ){
                             --u;
-                            //T is reversed to allow searching using gbwt::GBWT::find
                             T[end-1-u] = position.first;
                             this->fullLF(position, sequence);
                         }
-//                        std::cout << "looking for T["<< start << ',' << end << ") = ";
-//                            for (auto a : T)
-//                            std::cout << a << ' ';
-//                        std::cout << "in GBWT" << std::endl;
                         size_type first = 0;
                         gbwt::SearchState range = this->source->rindex->find(T.begin(), T.end(), first);
 
                         for (size_type j = 0, a = first; j < range.size(); ++j, first = this->source->rindex->locateNext(first)){
-//                            std::cout << "found in range, seqId " << this->source->rindex->seqId(a) << " offset " << this->source->rindex->seqOffset(a);
                             a = this->FLsuffToTrueSuff(a);
-//                            std::cout << " true suff " << a << std::endl; 
                             auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), a);
                             if (it != sampleLocations.end() && *it < a + (end-start)){
-//                                std::cout << " is in range, *it " << *it << std::flush;
                                 levels.back().mapsTo[firstBlock] = it - sampleLocations.begin();
                                 levels.back().offset[firstBlock] = a + slplus1 - *it;
-//                                std::cout << " mapsto " << levels.back().mapsTo[firstBlock] << " offset " << levels.back().offset[firstBlock] << std::endl;
                                 usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
                                 sampleUsed[levels.back().mapsTo[firstBlock]] = true;
                                 break;
@@ -461,56 +388,41 @@ CompText::CompText(const FastLCP & l): source(&l) {
                         }
                     }
                 }
-                else { /*std::cout << "end <= start" << std::endl;*/ levels.back().mapsTo[firstBlock] = levels.back().offset[firstBlock] = 0; 
+                else { levels.back().mapsTo[firstBlock] = levels.back().offset[firstBlock] = 0; 
                     usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
                     sampleUsed[levels.back().mapsTo[firstBlock]] = true;
                 }
                 //fourth half block
                 end = (k > n-s_l)? n : k+s_l;
                 start = (k > n-slplus1)? n : k+slplus1;
-//                std::cout << "fourth half block k " << k << " s_l " << s_l << " slplus1 " << slplus1 << " start "
-//                    << start << " end " << end << std::endl;
                 if (end > start) {
                     auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), start);
                     if (it != sampleLocations.end() && *it < end){
-//                        std::cout << "no LF needed, marker found" << std::endl;
                         levels.back().mapsTo[fourthBlock] = it - sampleLocations.begin();
                         levels.back().offset[fourthBlock] = start + slplus1 - *it;
-                        //offset setting above is a possible bug/problem area here and other places it is
-                        //set/used (construction/query respectively)
                         usedCount += !sampleUsed[levels.back().mapsTo[fourthBlock]];
                         sampleUsed[levels.back().mapsTo[fourthBlock]] = true;
                     }
                     else{
                         //never happens at the beginnning or end, so the block is always of size s_l
-//                        std::cout << "LF needed, marker not found" << std::endl;
                         gbwt::vector_type T(end-start);
                         gbwt::edge_type position = blockPositionStarts[l][4*i+3];
                         size_type sequence = this->pathStarts.predecessor(end)->first;
                         this->fullLF(position, sequence);
                         for (size_type u = end; u != start; ){
                             --u;
-                            //T is reversed to allow searching using gbwt::GBWT::find
                             T[end-1-u] = position.first;
                             this->fullLF(position, sequence);
                         }
-//                        std::cout << "looking for T["<< start << ',' << end << ") = ";
-//                            for (auto a : T)
-//                            std::cout << a << ' ';
-//                        std::cout << " in GBWT" << std::endl;
                         size_type first = 0;
                         gbwt::SearchState range = this->source->rindex->find(T.begin(), T.end(), first);
 
                         for (size_type j = 0, a = first; j < range.size(); ++j, first = this->source->rindex->locateNext(first)){
-//                            std::cout << "found in range, seqId " << this->source->rindex->seqId(a) << " offset " << this->source->rindex->seqOffset(a);
                             a = this->FLsuffToTrueSuff(a);
-//                            std::cout << " true suff " << a << std::endl; 
                             auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), a);
                             if (it != sampleLocations.end() && *it < a + (end-start)){
-//                                std::cout << " is in range, *it " << *it << std::flush;
                                 levels.back().mapsTo[fourthBlock] = it - sampleLocations.begin();
                                 levels.back().offset[fourthBlock] = a + slplus1 - *it;
-//                                std::cout << " mapsto " << levels.back().mapsTo[fourthBlock] << " offset " << levels.back().offset[fourthBlock] << std::endl;
                                 usedCount += !sampleUsed[levels.back().mapsTo[fourthBlock]];
                                 sampleUsed[levels.back().mapsTo[fourthBlock]] = true;
                                 break;
@@ -528,11 +440,6 @@ CompText::CompText(const FastLCP & l): source(&l) {
             {
                 std::cerr << "CompText::CompText(): Out of " << sampleLocations.size() << " sampled locations, " << usedCount << " unique blocks were mapped to by the " << sampleLocations.size()*2 << " first and fourth half blocks from this level of the block tree." << std::endl;
             }
-//            std::cout << "levels.back() ";
-//            for (size_type i = 0; i < levels.back().mapsTo.size(); ++i)
-//                std::cout << '(' << levels.back().mapsTo[i] << ',' << levels.back().offset[i] << ") ";
-//            std::cout << std::endl;
-//            std::cout << "before compression levels.back() size " << sdsl::size_in_bytes(levels.back()) << std::endl;
             levels.back().compress();
             size_type thisLevelSize = sdsl::size_in_bytes(levels.back());
             treeAndFirstLevelSize += thisLevelSize;
@@ -545,10 +452,6 @@ CompText::CompText(const FastLCP & l): source(&l) {
                 std::cerr << "CompText::CompText(): Construction of this level took " << gbwt::readTimer() - levelStartTime << " seconds" << std::endl;
             }
         }
-//        std::cout << "sizeEstimate ";
-//        for (auto a: sizeEstimate)
-//            std::cout << a << ' ';
-//        std::cout << std::endl;
         if (gbwt::Verbosity::level>= gbwt::Verbosity::FULL)
         {
             std::cerr << "CompText::CompText(): Construction of all levels took " << gbwt::readTimer() - firstLevelStart << " seconds" << std::endl;
@@ -559,7 +462,6 @@ CompText::CompText(const FastLCP & l): source(&l) {
         //trim tree to smallest size, always has at least one internal level.
         auto minIter = std::min_element(sizeEstimate.begin()+1, sizeEstimate.end());
         numLevels = minIter - sizeEstimate.begin();
-        //numLevels = 3; //REMOVE LATER
         
         if (gbwt::Verbosity::level>= gbwt::Verbosity::FULL)
         {
@@ -581,7 +483,6 @@ CompText::CompText(const FastLCP & l): source(&l) {
         for (size_type i = 0; i < sampleLocations.size(); ++i){
             size_type k = sampleLocations[i];
             size_type blockStart = 2*i*s_l;
-//            std::cout << "\ntext Sample block " << i << " location " << k << " blockStart " << blockStart << std::flush;
             for (size_type j = 0; j < s_l*2; ++j)
                 textSamples[blockStart + j] = 0;
             //first block
@@ -589,14 +490,11 @@ CompText::CompText(const FastLCP & l): source(&l) {
             size_type end = k;
             gbwt::edge_type position = blockPositionStarts[numLevels-1][4*i+1];
             size_type sequence = this->pathStarts.predecessor(end)->first;
-//            std::cout << "\nbefore lf position " << '(' << position.first << ',' << position.second  << ") sequence " << sequence << std::endl;
             if (end != n)
                 this->fullLF(position, sequence);
             else {sequence = l.rindex->index->sequences() - 1; position = {gbwt::ENDMARKER, sequence};}
-//            std::cout << "first block start " << start << " end " << end;
             for (size_type u = 0; u != end-start; ++u){
                 textSamples[blockStart+s_l-1-u] = l.rindex->index->toComp(position.first);
-//                std::cout << " position " << '(' << position.first << ',' << position.second  << ") sequence " << sequence << std::endl;
                 this->fullLF(position, sequence);
             }
             //second block
@@ -605,22 +503,14 @@ CompText::CompText(const FastLCP & l): source(&l) {
             blockStart += s_l;
             position = blockPositionStarts[numLevels-1][4*i+2];
             sequence = this->pathStarts.predecessor(end)->first;
-//            std::cout << "before lf position " << '(' << position.first << ',' << position.second  << ") sequence " << sequence << std::endl;
             if (end != n)
                 this->fullLF(position, sequence);
             else {sequence = l.rindex->index->sequences() - 1; position = {gbwt::ENDMARKER, sequence};}
-//            std::cout << "second block start " << start << " end " << end;
             for (size_type u = 0; u != end-start; ++u){
                 textSamples[blockStart+(end-start)-1-u] = l.rindex->index->toComp(position.first);
-//                std::cout << " position " << '(' << position.first << ',' << position.second  << ") sequence " << sequence << std::endl;
                 this->fullLF(position, sequence);
             }
         }
-//        std::cout << "textSamples ";
-//        for (auto i : textSamples)
-//            std::cout << l.rindex->index->toNode(i) << ' ';
-//        std::cout << std::endl;
-//        std::cout << "before compression textSamples size " << sdsl::size_in_bytes(textSamples) << std::endl;
         sdsl::util::bit_compress(textSamples);
         if (gbwt::Verbosity::level>= gbwt::Verbosity::FULL)
         {
@@ -688,13 +578,7 @@ void CompText::buildFullMem(const FastLCP & l) {
         for (const auto & a : temp)
             if (sampleLocations.size() == 0 || a != sampleLocations.back())
                 sampleLocations.push_back(a);
-//        std::cout << "sampleLocations ";
-//           for (auto a:  sampleLocations) 
-//              std::cout << a << ' ';
-//        std::cout << std::endl;
     }
-    //this->temp_sl = sampleLocations;
-
 
     //sizeEstimate[i] is an estimate for the size of the whole data structure if it had i intermediate levels
     //(if levels.size() was i)
@@ -738,10 +622,6 @@ void CompText::buildFullMem(const FastLCP & l) {
                 std::cout << "Extracted seq " << i << " in " << gbwt::readTimer() - seqStart << " seconds" << std::endl;
             }
         }
-//        std::cout << "Extracted fullText: " << std::flush;
-//        for (size_type i = 0; i<fullText.size(); ++i)
-//            std::cout << fullText[i] << ',' << std::flush;
-//        std::cout << std::endl;
     }
     if(gbwt::Verbosity::level >= gbwt::Verbosity::FULL)
     {
@@ -754,11 +634,6 @@ void CompText::buildFullMem(const FastLCP & l) {
             std::cerr << "CompText::CompText(): Building block tree" << std::endl;
         }
         //build block tree 
-
-        //auto ithStart = [] (size_type i, size_type n, size_type r) {
-        //    //assumes 0 <= i <= r <= n
-        //    return i*(n/r) + ((i*(n%r))/r);
-        //};
 
         double firstLevelStart = gbwt::readTimer();
         {
@@ -784,49 +659,30 @@ void CompText::buildFullMem(const FastLCP & l) {
                     std::cout << "On run " << blockInd << " after " << gbwt::readTimer() - runStart << " seconds" << std::endl;
                     runStart = gbwt::readTimer();
                 }
-//                std::cout << "start " << start << " end " << end << std::endl << "sampleLocations.size() " << sampleLocations.size() << std::endl;
-//                std::cout << "run " << blockInd << std::endl;
-//                std::cout << "LF done " << std::endl;
                 //assign block blockInd to a run, block blockInd corresponds to [blockInd*s_0, (blockInd+1)*s_0) = [start, end)
                 //where s_0 is the smallest power of 2 larger than or equal to \ceiling(n/r) (and is the block size of the first level of the tree
                 //where n is the total length and r is the number of GBWT logical runs
                 auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), start);
                 if (it != sampleLocations.end() && *it < end){
-//                    std::cout << "no LF needed, marker found" << std::endl;
-//                    std::cout << "it - sampleLocations.begin() " << it - sampleLocations.begin() << " *it " << *it << " start " << start << std::endl;
-//                    std::cout << " blockInd " << blockInd << std::endl;
                     firstLevel.mapsTo[blockInd] = it - sampleLocations.begin();
                     firstLevel.offset[blockInd] = start + this->s_0 - *it;
-//                    std::cout << " mapsto " << firstLevel.mapsTo[blockInd] << " offset " << firstLevel.offset[blockInd] << std::endl;
                     usedCount += !sampleUsed[firstLevel.mapsTo[blockInd]];
                     sampleUsed[firstLevel.mapsTo[blockInd]] = true;
-//                    std::cout << " mapsto " << firstLevel.mapsTo[blockInd] << " offset " << firstLevel.offset[blockInd] << std::endl;
                     continue;
                 }
                 //all endmarkers  are sampled therefore [start, end) contains no endmarkers
                 //if [start, end) is not a primary occurrence of T[start, end).
                 //Here we search for a primary occurence
 
-//                std::cout << "LF needed, marker not found" << std::endl;
-                    
-                //assert(this->s_0 == end-start);
                 size_type first = 0;
-//                std::cout << "looking for T["<< start << ',' << end << ") = ";
-//                    for (auto a : T)
-//                       std::cout << a << ' ';
-//                std::cout  << " in GBWT" << std::endl;
                 gbwt::SearchState range = l.rindex->find(fullText.rend() - end, fullText.rend() - start, first);
 
                 for (size_type j = 0, a = first; j < range.size(); ++j, first = this->source->rindex->locateNext(first)){
-//                    std::cout << "found in range, seqId " << l.rindex->seqId(a) << " offset " << l.rindex->seqOffset(a);
                     a = this->FLsuffToTrueSuff(a);
-//                    std::cout << " true suff " << a << std::endl; 
                     auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), a);
                     if (it != sampleLocations.end() && *it < a + (end-start)){
-//                        std::cout << " is in range, *it " << *it;
                         firstLevel.mapsTo[blockInd] = it - sampleLocations.begin();
                         firstLevel.offset[blockInd] = a + this->s_0 - *it;
-//                        std::cout << " mapsto " << firstLevel.mapsTo[i] << " offset " << firstLevel.offset[i] << std::endl;
                         usedCount += !sampleUsed[firstLevel.mapsTo[blockInd]];
                         sampleUsed[firstLevel.mapsTo[blockInd]] = true;
                         break;
@@ -839,11 +695,6 @@ void CompText::buildFullMem(const FastLCP & l) {
                 std::cerr << "CompText::CompText(): Out of " << sampleLocations.size() << " sampled locations, " << usedCount << " unique blocks were mapped to by the " << topLevelRuns << " blocks in the first level of the block tree." << std::endl;
             }
         }
-//        std::cout << "firstLevel ";
-//        for (size_type i = 0; i < firstLevel.mapsTo.size(); ++i)
-//            std::cout << '(' << firstLevel.mapsTo[i] << ',' << firstLevel.offset[i] << ") ";
-//        std::cout << std::endl;
-//        std::cout << "before compression firstLevel size " << std::flush << sdsl::size_in_bytes(firstLevel) << std::endl;
         firstLevel.compress();
 
         //build the rest of the levels
@@ -884,40 +735,26 @@ void CompText::buildFullMem(const FastLCP & l) {
                 //first half block
                 size_type start = (k < s_l)? 0 : k-s_l;
                 size_type end = (k < slplus1)? 0 : k-slplus1;
-//                std::cout << "first half block k " << k << " s_l " << s_l << " slplus1 " << slplus1 << " start "
-//                    << start << " end " << end << std::endl;
                 if (end > start) {
                     auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), start);
                     if (it != sampleLocations.end() && *it < end){
-//                        std::cout << "no LF needed, marker found" << std::endl;
                         levels.back().mapsTo[firstBlock] = it - sampleLocations.begin();
                         levels.back().offset[firstBlock] = start + slplus1 - *it;
-                        //offset setting above is a possible bug/problem area here and other places it is
-                        //set/used (construction/query respectively)
                         usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
                         sampleUsed[levels.back().mapsTo[firstBlock]] = true;
                     }
                     else{
                         //never happens at the beginnning or end, so the block is always of size s_l
                         //assert(end-start == s_l);
-//                        std::cout << "LF needed, marker not found" << std::endl;
-//                        std::cout << "looking for T["<< start << ',' << end << ") = ";
-//                            for (auto a : T)
-//                            std::cout << a << ' ';
-//                        std::cout << "in GBWT" << std::endl;
                         size_type first = 0;
                         gbwt::SearchState range = this->source->rindex->find(fullText.rend() - end, fullText.rend() - start, first);
 
                         for (size_type j = 0, a = first; j < range.size(); ++j, first = this->source->rindex->locateNext(first)){
-//                            std::cout << "found in range, seqId " << this->source->rindex->seqId(a) << " offset " << this->source->rindex->seqOffset(a);
                             a = this->FLsuffToTrueSuff(a);
-//                            std::cout << " true suff " << a << std::endl; 
                             auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), a);
                             if (it != sampleLocations.end() && *it < a + (end-start)){
-//                                std::cout << " is in range, *it " << *it << std::flush;
                                 levels.back().mapsTo[firstBlock] = it - sampleLocations.begin();
                                 levels.back().offset[firstBlock] = a + slplus1 - *it;
-//                                std::cout << " mapsto " << levels.back().mapsTo[firstBlock] << " offset " << levels.back().offset[firstBlock] << std::endl;
                                 usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
                                 sampleUsed[levels.back().mapsTo[firstBlock]] = true;
                                 break;
@@ -925,46 +762,32 @@ void CompText::buildFullMem(const FastLCP & l) {
                         }
                     }
                 }
-                else { /*std::cout << "end <= start" << std::endl;*/ levels.back().mapsTo[firstBlock] = levels.back().offset[firstBlock] = 0; 
+                else { levels.back().mapsTo[firstBlock] = levels.back().offset[firstBlock] = 0; 
                     usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
                     sampleUsed[levels.back().mapsTo[firstBlock]] = true;
                 }
                 //fourth half block
                 end = (k > n-s_l)? n : k+s_l;
                 start = (k > n-slplus1)? n : k+slplus1;
-//                std::cout << "fourth half block k " << k << " s_l " << s_l << " slplus1 " << slplus1 << " start "
-//                    << start << " end " << end << std::endl;
                 if (end > start) {
                     auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), start);
                     if (it != sampleLocations.end() && *it < end){
-//                        std::cout << "no LF needed, marker found" << std::endl;
                         levels.back().mapsTo[fourthBlock] = it - sampleLocations.begin();
                         levels.back().offset[fourthBlock] = start + slplus1 - *it;
-                        //offset setting above is a possible bug/problem area here and other places it is
-                        //set/used (construction/query respectively)
                         usedCount += !sampleUsed[levels.back().mapsTo[fourthBlock]];
                         sampleUsed[levels.back().mapsTo[fourthBlock]] = true;
                     }
                     else{
                         //never happens at the beginnning or end, so the block is always of size s_l
-//                        std::cout << "LF needed, marker not found" << std::endl;
-//                        std::cout << "looking for T["<< start << ',' << end << ") = ";
-//                            for (auto a : T)
-//                            std::cout << a << ' ';
-//                        std::cout << " in GBWT" << std::endl;
                         size_type first = 0;
                         gbwt::SearchState range = this->source->rindex->find(fullText.rend() - end, fullText.rend() - start, first);
 
                         for (size_type j = 0, a = first; j < range.size(); ++j, first = this->source->rindex->locateNext(first)){
-//                            std::cout << "found in range, seqId " << this->source->rindex->seqId(a) << " offset " << this->source->rindex->seqOffset(a);
                             a = this->FLsuffToTrueSuff(a);
-//                            std::cout << " true suff " << a << std::endl; 
                             auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), a);
                             if (it != sampleLocations.end() && *it < a + (end-start)){
-//                                std::cout << " is in range, *it " << *it << std::flush;
                                 levels.back().mapsTo[fourthBlock] = it - sampleLocations.begin();
                                 levels.back().offset[fourthBlock] = a + slplus1 - *it;
-//                                std::cout << " mapsto " << levels.back().mapsTo[fourthBlock] << " offset " << levels.back().offset[fourthBlock] << std::endl;
                                 usedCount += !sampleUsed[levels.back().mapsTo[fourthBlock]];
                                 sampleUsed[levels.back().mapsTo[fourthBlock]] = true;
                                 break;
@@ -982,11 +805,6 @@ void CompText::buildFullMem(const FastLCP & l) {
             {
                 std::cerr << "CompText::CompText(): Out of " << sampleLocations.size() << " sampled locations, " << usedCount << " unique blocks were mapped to by the " << sampleLocations.size()*2 << " first and fourth half blocks from this level of the block tree." << std::endl;
             }
-//            std::cout << "levels.back() ";
-//            for (size_type i = 0; i < levels.back().mapsTo.size(); ++i)
-//                std::cout << '(' << levels.back().mapsTo[i] << ',' << levels.back().offset[i] << ") ";
-//            std::cout << std::endl;
-//            std::cout << "before compression levels.back() size " << sdsl::size_in_bytes(levels.back()) << std::endl;
             levels.back().compress();
             size_type thisLevelSize = sdsl::size_in_bytes(levels.back());
             treeAndFirstLevelSize += thisLevelSize;
@@ -999,10 +817,6 @@ void CompText::buildFullMem(const FastLCP & l) {
                 std::cerr << "CompText::CompText(): Construction of this level took " << gbwt::readTimer() - levelStartTime << " seconds" << std::endl;
             }
         }
-//        std::cout << "sizeEstimate ";
-//        for (auto a: sizeEstimate)
-//            std::cout << a << ' ';
-//        std::cout << std::endl;
         if (gbwt::Verbosity::level>= gbwt::Verbosity::FULL)
         {
             std::cerr << "CompText::CompText(): Construction of all levels took " << gbwt::readTimer() - firstLevelStart << " seconds" << std::endl;
@@ -1013,7 +827,6 @@ void CompText::buildFullMem(const FastLCP & l) {
         //trim tree to smallest size
         auto minIter = std::min_element(sizeEstimate.begin(), sizeEstimate.end());
         numLevels = minIter - sizeEstimate.begin();
-        //numLevels = 3; //REMOVE LATER
         
         if (gbwt::Verbosity::level>= gbwt::Verbosity::FULL)
         {
@@ -1035,18 +848,14 @@ void CompText::buildFullMem(const FastLCP & l) {
         for (size_type i = 0; i < sampleLocations.size(); ++i){
             size_type k = sampleLocations[i];
             size_type blockStart = 2*i*s_l;
-//            std::cout << "\ntext Sample block " << i << " location " << k << " blockStart " << blockStart;
             for (size_type j = 0; j < s_l*2; ++j)
                 textSamples[blockStart + j] = 0;
             //first block
             size_type start = (k < s_l)? 0 : k-s_l;
             size_type end = k;
             auto it = fullText.begin() + start;
-//            std::cout << "\nbefore lf position " << '(' << position.first << ',' << position.second  << ") sequence " << sequence << std::endl;
-//            std::cout << "first block start " << start << " end " << end;
             for (size_type u = start; u != end; ++it, ++u){
                 textSamples[blockStart+s_l-(end-u)] = l.rindex->index->toComp(*it);
-//                std::cout << " position " << '(' << position.first << ',' << position.second  << ") sequence " << sequence << std::endl;
             }
             //second block
             start = k;
@@ -1055,14 +864,8 @@ void CompText::buildFullMem(const FastLCP & l) {
             it = fullText.begin() + k;
             for (size_type u = start; u != end; ++it, ++u){
                 textSamples[blockStart+(u-start)] = l.rindex->index->toComp(*it);
-//                std::cout << " position " << '(' << position.first << ',' << position.second  << ") sequence " << sequence << std::endl;
             }
         }
-//        std::cout << "textSamples ";
-//        for (auto i : textSamples)
-//            std::cout << l.rindex->index->toNode(i) << ' ';
-//        std::cout << std::endl;
-//        std::cout << "before compression textSamples size " << sdsl:size_in_bytes(textSamples) << std::endl;
         sdsl::util::bit_compress(textSamples);
         if (gbwt::Verbosity::level>= gbwt::Verbosity::FULL)
         {
@@ -1079,7 +882,6 @@ void CompText::buildFullMem(const FastLCP & l) {
 }
 
 gbwt::node_type CompText::at(size_type i) const{
-//    std::cout << "in CompText::at(" << i << ")" << std::endl;
     if (i >= this->textLength())
         return gbwt::invalid_offset();
     
@@ -1091,7 +893,6 @@ gbwt::node_type CompText::at(size_type i) const{
         offset = i%this->s_0;
         //levels[0]
         offset += firstLevel.offset[blockIndex];
-        //assert(offset < 2*this->s_0);
         blockIndex = 2*firstLevel.mapsTo[blockIndex] + (offset/this->s_0);
         offset = offset%this->s_0;
     }
@@ -1101,13 +902,10 @@ gbwt::node_type CompText::at(size_type i) const{
     size_type level = 0;
     size_type s_l = this->s_0;
     size_type slplus1 = s_l/2;
-//    std::cout << "blockIndex " << blockIndex << " offset " << offset << " s_0 " << this->s_0 << " s_l " << s_l << " slplus1 " << slplus1 << std::endl;
-//    std::cout << "firstLevel:\n";
 
     for (;level < levels.size(); ++level, s_l = slplus1, slplus1/=2){
         //currently at the blockIndex-th block of levels[level]
         //at an offset of offset within the block
-//        std::cout << "level " << level << " s_l " << s_l << " slplus1 " << slplus1 << " blockIndex " << blockIndex << " offset " << offset << std::endl;
         if ((blockIndex%2 == 0 && offset >= slplus1) || (blockIndex%2 == 1 && offset < slplus1)){
             if (blockIndex%2 == 0)
                 offset -= slplus1;
@@ -1118,12 +916,9 @@ gbwt::node_type CompText::at(size_type i) const{
         if (blockIndex%2 == 1)
             offset -= slplus1;
         offset += levels[level].offset[blockIndex];
-//        std::cout << "offset before mod " << offset << std::endl;
         blockIndex = 2*levels[level].mapsTo[blockIndex]+(offset/slplus1);
         offset = offset % slplus1;
     }
-//    std::cout << "level " << level << " s_l " << s_l << " slplus1 " << slplus1 << " blockIndex " << blockIndex << " offset " << offset << std::endl;
-//    std::cout << "return " << this->source->rindex->index->toNode(this->textSamples[blockIndex*s_l + offset]) << std::endl;
     return this->source->rindex->index->toNode(this->textSamples[blockIndex*s_l + offset]);
 }
 
