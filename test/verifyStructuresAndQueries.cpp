@@ -55,42 +55,18 @@ int main(int argc, char* argv[]){
     std::cout << "Finished construction of LF GBWT" << std::endl;
     
     CompText ct(l);
-    //ct.buildFullMem(l);
 
     std::cout << "Finished construction of Compressed Text" << std::endl;
 
 
-/*    std::cout << "Printing GBWT:" << '\n';
-    for (gbwt::node_type i = 0; i < x.sigma(); ++i){
-        std::cout << "Printing Node " << i << '\n';
-        std::cout << "Size: " << x.nodeSize(i) << '\n';
-        gbwt::CompressedRecord a = x.record(i);
-        std::vector<gbwt::edge_type> outgoing = x.edges(i);
-
-        std::cout << "BWT: ";
-        for (unsigned j = 0; j < x.nodeSize(i); ++j)
-            std::cout << a[j] << ' ';
-        std::cout << "\nRun: ";
-        for (gbwt::CompressedRecordIterator it(a); !(it.end()); ++it)
-            std::cout << it->first << ',' << it->second << ' ';
-        std::cout << '\n' << "Out: ";
-        for (unsigned j = 0; j < outgoing.size(); ++j)
-            std::cout << outgoing[j].first << ',' << outgoing[j].second << ' ';
-        std::cout << '\n';
-
-    }
- */   
     printGBWTandRindex(std::cout, x, r, l, lfg, ct, ioWidth);
 
-    //gbwt::vector_type a{2,6,8,10,12,14,14,14,18};
-    //gbwt::vector_type a{6,8,15,12,18};
-    //gbwt::vector_type a{6,19,13,11,9,20,3};
     gbwt::vector_type a{17,15,15,15,15,2,4,8,14,14,14,14,14,14,14,18};
     //(start position in Q, length, path ID)
     std::vector<std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type>>>                 matchWithoutPosition = {setMaximalMatchQueryN2(x,a), setMaximalMatchQuery0(x,a)};
     //(start position in Q, length, path ID, start position in path)
     std::cout << "Finished matches without positons computation" << std::endl;
-    //std::vector<std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type,gbwt::size_type>>> matchWithPosition = {setMaximalMatchQueryBrute(x,a), setMaximalMatchQuery1(x, r, a), setMaximalMatchQuery2(x, r, l, a)};
+
     std::vector<std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type,gbwt::size_type>>> matchWithPosition = {setMaximalMatchQueryBrute(x,a), setMaximalMatchQuery1(x, r, a)};
     std::cout << "Finished first two matches with positons computation" << std::endl;
     matchWithPosition.push_back(setMaximalMatchQuery2(x, r, l, a));
@@ -174,6 +150,7 @@ int main(int argc, char* argv[]){
     std::cout << ((matchesAgree(matchWithoutPosition[0], matchWithPosition[0]))? 
             "First matches with position and first matches without position agree" : 
             "First matches with position and first matches without position don't agree!") << '\n';
+
     //printGBWTandRindex(std::cout, x, r, ioWidth);
     std::cout << "testIncremental: " << ((testIncremental(x, r, l, lfg, ct, numTests))? "passed" : "failed") << '\n';
     //printGBWTandRindex(std::cout, x, r, ioWidth);
