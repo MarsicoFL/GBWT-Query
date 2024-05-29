@@ -34,46 +34,25 @@ TestSetMaximalMatchQuery(const gbwt::GBWT& gwithDA, const gbwt::GBWT& g, const g
     std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type>> matchWithoutPosition;
     std::vector<std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type,gbwt::size_type>>> matches(5);
     ans[0] = gbwt::readTimer();
-    //std::cout << "S0" << std::endl;
     matchWithoutPosition = setMaximalMatchQuery0(gwithDA, Q);
-    //std::cout << "S0" << std::endl;
     ans[1] = gbwt::readTimer();
-    //std::cout << "S1" << std::endl;
     matches[0] = setMaximalMatchQuery1(g, r, Q);
-    //std::cout << "S1" << std::endl;
     ans[2] = gbwt::readTimer();
-    //std::cout << "S2" << std::endl;
     matches[1] = setMaximalMatchQuery2(g, r, l, Q);
-    //std::cout << "S2" << std::endl;
     ans[3] = gbwt::readTimer();
-    //std::cout << "S3" << std::endl;
     matches[2] = setMaximalMatchQuery3(lfg, r, l, Q);
-    //std::cout << "S3" << std::endl;
     ans[4] = gbwt::readTimer();
-    //std::cout << "S4" << std::endl;
     matches[3] = setMaximalMatchQuery4(lfg, r, l, ct, Q);
-    //std::cout << "S4" << std::endl;
     ans[5] = gbwt::readTimer();
-    //std::cout << "S2_4" << std::endl;
     matches[4] = setMaximalMatchQuery2_4(g, r, l, ct, Q);
-    //std::cout << "S2_4" << std::endl;
     ans[6] = gbwt::readTimer();
 
-
-    //matches = std::vector<std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type,gbwt::size_type>>>(matches.begin() + 1, matches.end());
 
     //verifying equal
     double start = gbwt::readTimer();
     std::sort(matchWithoutPosition.begin(), matchWithoutPosition.end());
     for (auto& match : matches) { std::sort(match.begin(), match.end()); }
     bool agree = matchesAgree(matches) && matchesAgree(matchWithoutPosition, matches[0]);
-    /*if (!agree) {
-        std::cout << "matches[0].size() " << matches[0].size() << " matchWithoutPosition.size() " << matchWithoutPosition.size() << std::endl;
-        std::cout << "matches[0]          : " << matches[0] << std::endl;
-        std::cout << "matchWithoutPosition: " << matchWithoutPosition << std::endl;
-    }*/
-    //bool agree = matchesAgree(matches);
-    //std::cout << "Matches " << ((agree)? "agree. " : "do not agree! ") << "Checked in " << gbwt::readTimer() - start << " seconds. There were a total of " << matches[0].size() << " matches." << std::endl;
     return {ans, agree, gbwt::readTimer()-start, matches[0].size()};
 }
 
@@ -95,10 +74,6 @@ TestLongMatchQuery(const gbwt::GBWT& g, const gbwt::FastLocate& r, const FastLCP
     double start = gbwt::readTimer();
     for (auto& match : matches) { std::sort(match.begin(), match.end()); }
     bool agree = matchesAgree(matches);
-    //std::cout << "matches[0].size() " << matches[0].size() << std::endl;
-    //std::cout << "matches[0]          : " << matches[0] << std::endl;
-    //std::cout << "Matches " << ((agree)? "agree. " : "do not agree! ") << "Checked in " << gbwt::readTimer() - start << " seconds. There were a total of " << matches[0].size() << " matches." << std::endl;
-    //return ans;
     return {ans, agree, gbwt::readTimer()-start, matches[0].size()};
 }
 
@@ -215,11 +190,6 @@ int main(int argc, char* argv[]) {
 
         #pragma omp critical
         {
-        //    std::cout << "Testing Queries for path " << i << std::endl;
-        //    std::cout << "Path: "; 
-        //    for (auto a: Q)
-        //        std::cout << "\t(" << a << ',' << g.nodeSize(a) << ')';
-        //    std::cout << std::endl;
         std::cout << "Extracted Query " << i << " of length " << Q.size() << " in " << gbwt::readTimer() - extractStart << " seconds" << std::endl;
         }
         //set maximal match query
@@ -249,7 +219,5 @@ int main(int argc, char* argv[]) {
     }
 
     std::cout << "Testing Queries Done!" << std::endl;
-
-
     return 0;
 }
