@@ -63,33 +63,20 @@ void printGBWTandRindex(std::ostream& out, const gbwt::GBWT & g, const gbwt::Fas
             << setw(labelWidth) << "ConcRuns:" << setw(width) << areEqual(a.runs().first, lfg_a.runs().first)
             << setw(labelWidth) << "LogiRuns:" << setw(width) << areEqual(a.runs().second, lfg_a.runs().second) <<'\n';
         out << std::flush;
-        //out << "Printing Node " << setw(width) << lfg.toNode(i) 
-        //    << setw(labelWidth) << "Comp:" << setw(width) << i 
-        //    << setw(labelWidth) << "Size:" << setw(width) << lfg.nodeSize(node) 
-        //    << setw(labelWidth) << "ConcRuns:" << setw(width) << lfg_a.runs().first 
-        //    << setw(labelWidth) << "LogiRuns:" << setw(width) << lfg_a.runs().second <<'\n';
         std::vector<gbwt::edge_type> outgoing = g.edges(node);
 
 
 
         std::vector<gbwt::size_type> suffixA, suffixB, LCPA, LCPB;
         suffixA.resize(size);
-        //std::cout << "here" << std::endl;
         suffixB.resize(size);
-        //std::cout << "here" << std::endl;
         LCPA.resize(size);
-        //std::cout << "here" << std::endl;
         LCPB.resize(size);
-        //std::cout << "here" << std::endl;
         suffixA[0] = r.locateFirst(node);
-        //std::cout << "here" << std::endl;
         suffixB.back() = l.locateLast(node);
-        //std::cout << "here" << std::endl;
         LCPA[0] = l.LCP(suffixA[0]);
-        //std::cout << "here" << std::endl;
         LCPB.back() = l.LCP(suffixB.back());
 
-        //std::cout << "here" << std::endl;
 
         for (unsigned j = 1; j < size; ++j){
             suffixA[j] = r.locateNext(suffixA[j-1]);
@@ -100,14 +87,9 @@ void printGBWTandRindex(std::ostream& out, const gbwt::GBWT & g, const gbwt::Fas
 
         out << setw(labelWidth) << "suff (FLoc):";
         for (unsigned j = 0; j < size; ++j){
-            //if (suffixA[j] != suffixB[j])
-                //out << r.unpack(suffixB[j]) << " not equal! " << std::flush;
             out << setw(width) << areEqual(r.unpack(suffixA[j]), r.unpack(suffixB[j])) << ' ';
         }
         out << std::flush;
-        //out << "\n" << setw(labelWidth) << "suff B (FLCP):";
-        //for (unsigned j = 0; j < size; ++j)
-        //    out << setw(width) << r.unpack(suffixB[j]) << ' ';
         out << "\n" << setw(labelWidth) << " LCP A (FLoc):";
         for (unsigned j = 0; j < size; ++j){
             out << setw(width) << areEqual(LCPA[j], LCPB[j]) << ' ';
@@ -125,13 +107,8 @@ void printGBWTandRindex(std::ostream& out, const gbwt::GBWT & g, const gbwt::Fas
             */
         }
         out << std::flush;
-        //out << "\n" << setw(labelWidth) << " LCP B (FLCP):";
-        //for (unsigned j = 0; j < size; ++j)
-        //    out << setw(width) << LCPB[j] << ' ';
         out << "\n" << setw(labelWidth) << "BWT:";
         for (unsigned j = 0; j < size; ++j){
-            //if (a[j] != g.toNode(lfg_a[j]))
-                //out << g.toNode(lfg_a[j]) << " not equal! " << std::flush;
             out << setw(width) << areEqual(a[j], lfg.toNode(lfg_a[j])) << ' ';
         }
         out << std::flush;
@@ -147,9 +124,6 @@ void printGBWTandRindex(std::ostream& out, const gbwt::GBWT & g, const gbwt::Fas
             gbwt::edge_type pos(node, j);
             out << setw(width) << areEqual(g.inverseLF(pos), lfg.inverseLF(pos)) << ' ';
         }
-        //out << "\n" << setw(labelWidth) << "BWT:";
-        //for (unsigned j = 0; j < size; ++j)
-        //    out << setw(width) << g.toNode(lfg_a[j]) << ' ';
         out << "\n" << setw(labelWidth) << "Run:";
         {
             auto lfgit = lfg_a.first.one_begin();
@@ -159,11 +133,6 @@ void printGBWTandRindex(std::ostream& out, const gbwt::GBWT & g, const gbwt::Fas
                 run = lfgit->first;
                 ++lfgit;
                 newStart = lfgit->second;
-                //if (it->first != lfg_a.alphabetByRun[run] || it->second != newStart - start){
-                    //out << '(' << setw(width) << lfg_a.alphabetByRun[run]
-                        //<< ',' << setw(width) << newStart - start << "),";
-                    //out << " not equal! " << std::flush;
-                //}
                 out << '(' << setw(width) << areEqual(it->first, lfg_a.alphabetByRun[run])
                     << ',' << setw(width) << areEqual(it->second, newStart - start) << "),";
                 start = newStart;
@@ -172,28 +141,12 @@ void printGBWTandRindex(std::ostream& out, const gbwt::GBWT & g, const gbwt::Fas
             out << " Finished runs: " << areEqual((it.end()), lfgit == lfg_a.first.one_end());
             out << std::flush;
         }
-        //for (kk!(it.end()); ++it)
-        //    out << '(' << setw(width) << it->first
-        //        << ',' << setw(width) << it->second << "),";
-        //out << "\n" << setw(labelWidth) << "Run:";
-        //for (auto it = lfg_a.first.one_begin(); it != lfg_a.first.one_end();){
-        //    out << '(' << setw(width) << lfg_a.alphabetByRun[it->first]
-        //        << ',' << setw(width) << (++it)->second - start << "),";
-        //}
         out << '\n' << setw(labelWidth) << "Out:";
         for (unsigned j = 0; j < outgoing.size(); ++j){
-            //if (outgoing[j].first != g.toNode(lfg_a.alphabet.select_iter(j+1)->second) || outgoing[j].second != lfg_a.outgoing[j])
-                //out << '(' << setw(width) << g.toNode(lfg_a.alphabet.select_iter(j+1)->second)
-                    //<< ',' << setw(width) << lfg_a.outgoing[j]
-                    //<< " not equal! " << std::flush;
             out << '(' << setw(width) << areEqual(outgoing[j].first, g.toNode(lfg_a.alphabet.select_iter(j+1)->second))
                 << ',' << setw(width) << areEqual(outgoing[j].second, lfg_a.outgoing[j]) << "),";
         }
         out << std::flush;
-        //out << '\n' << setw(labelWidth) << "Out:";
-        //for (unsigned j = 0; j < lfg_a.outgoing.size(); ++j)
-        //    out << '(' << setw(width) << g.toNode(lfg_a.alphabet.select_iter(j+1)->second)
-        //        << ',' << setw(width) << lfg_a.outgoing[j] << "),";
         out << '\n';
     }
     out << "\nPrinting paths in GBWT:" << '\n';
@@ -206,7 +159,6 @@ void printGBWTandRindex(std::ostream& out, const gbwt::GBWT & g, const gbwt::Fas
         gbwt::vector_type Q;
         bool unequal = false;
         do {
-            //out << curr.first << ',';// << curr.second << '\t';
             curr = g.LF(curr);
             Q.push_back(curr.first);
         } while (curr.first != init.first);
@@ -265,13 +217,5 @@ void printGBWTandRindex(std::ostream& out, const gbwt::GBWT & g, const gbwt::Fas
 
     out << "Full texts are " << ((fullTextGBWT == fullTextct)? "equal" : "not equal!") << std::endl;
     out << "Full texts are " << ((ct.verifyText())? "equal" : "not equal!") << std::endl;
-
-    //for debugging. remove later
-    /*
-    gbwt::vector_type TrueSl = ct.TrueSl(fullTextGBWT);
-    out << "TrueSl: " << TrueSl << '\n';
-
-    out << "textSamples and TrueSl are " << ((ct.compareTextSamples(TrueSl))? "equal" : "not equal!") << std::endl;
-    */
 }
 #endif //GBWT_QUERY_IOHELP_H
