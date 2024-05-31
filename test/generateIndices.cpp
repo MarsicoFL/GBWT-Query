@@ -89,8 +89,9 @@ int main(int argc, char* argv[]) {
     std::cout << "Read GBWT in " << gbwt::readTimer() - start << " seconds" << std::endl;
     gbwt::printStatistics(g, argv[1] + gbwt::GBWT::EXTENSION, std::cout);
     
-    if (haplotypes >= g.metadata.haplotypes()){
-        std::cout << "Haplotypes to remove must be less than the number of haplotypes in the GBWT. Haplotypes to remove: " << haplotypes << ". Haplotypes in the GBWT: " << g.metadata.samples() << std::endl;
+    gbwt::size_type hapsInGBWT = g.sequences() / (1+g.bidirectional());
+    if (haplotypes >= hapsInGBWT){
+        std::cout << "Haplotypes to remove must be less than the number of haplotypes in the GBWT. Haplotypes to remove: " << haplotypes << ". Haplotypes in the GBWT: " << hapsInGBWT << std::endl;
         exit(1);
     }
 
@@ -101,7 +102,7 @@ int main(int argc, char* argv[]) {
 
     //getting haplotypes to remove
     start = gbwt::readTimer();
-    std::vector<gbwt::size_type> hapsToRemove = generateNUniqueRandomLessThanM(haplotypes, g.metadata.haplotypes());
+    std::vector<gbwt::size_type> hapsToRemove = generateNUniqueRandomLessThanM(haplotypes, hapsInGBWT);
     std::cout << "Finished selecting haplotypes to remove in " << gbwt::readTimer() - start << " seconds." << std::endl;
 
     //store raw haplotype paths to query

@@ -247,7 +247,7 @@ FastLCP::FastLCP(const gbwt::FastLocate& source) : rindex(&source) {
         {
             head_samples.insert(head_samples.end(), head_buffer.begin(), head_buffer.end());
             tail_samples.insert(tail_samples.end(), tail_buffer.begin(), tail_buffer.end());
-            std::cout << "Extracted seq " << i << " in " << gbwt::readTimer() - start << " seconds" << std::endl;
+            //std::cout << "Extracted seq " << i << " in " << gbwt::readTimer() - start << " seconds" << std::endl;
         }
     }
     sdsl::util::clear(endmarker_runs);
@@ -327,7 +327,7 @@ FastLCP::FastLCP(const gbwt::FastLocate& source) : rindex(&source) {
         } while (curr.first != ENDMARKER);
         #pragma omp critical
         {
-        std::cout << "Extracted seq " << i << " in " << gbwt::readTimer() - start << " seconds" << std::endl;
+        //std::cout << "Extracted seq " << i << " in " << gbwt::readTimer() - start << " seconds" << std::endl;
         }
     }
     
@@ -458,7 +458,7 @@ FastLCP::FastLCP(const lf_gbwt::GBWT& lfg, const gbwt::FastLocate& r) : rindex(&
         {
             head_samples.insert(head_samples.end(), head_buffer.begin(), head_buffer.end());
             tail_samples.insert(tail_samples.end(), tail_buffer.begin(), tail_buffer.end());
-            std::cout << "Extracted seq " << i << " in " << gbwt::readTimer() - start << " seconds" << std::endl;
+            //std::cout << "Extracted seq " << i << " in " << gbwt::readTimer() - start << " seconds" << std::endl;
         }
     }
     sdsl::util::clear(endmarker_runs);
@@ -540,7 +540,7 @@ FastLCP::FastLCP(const lf_gbwt::GBWT& lfg, const gbwt::FastLocate& r) : rindex(&
         } while (curr.first != ENDMARKER);
         #pragma omp critical
         {
-        std::cout << "Extracted seq " << i << " in " << gbwt::readTimer() - start << " seconds" << std::endl;
+        //std::cout << "Extracted seq " << i << " in " << gbwt::readTimer() - start << " seconds" << std::endl;
         }
     }
     

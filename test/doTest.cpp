@@ -243,6 +243,6 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    std::cout << "Testing Queries Done!" << std::endl;
+    //std::cout << "Testing Queries Done!" << std::endl;
     return 0;
 }

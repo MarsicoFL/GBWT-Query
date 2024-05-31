@@ -666,10 +666,10 @@ void CompText::buildFullMem(const FastLCP & l) {
                 fullText[--end] = curr.first;
                 curr = this->source->rindex->index->LF(curr);
             }
-            #pragma omp critical
+            /*#pragma omp critical
             {
                 std::cout << "Extracted seq " << i << " in " << gbwt::readTimer() - seqStart << " seconds" << std::endl;
-            }
+            }*/
         }
     }
     if(gbwt::Verbosity::level >= gbwt::Verbosity::FULL)
