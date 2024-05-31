@@ -57,3 +57,7 @@ The following header files contain implementation of the queries.
 * [longMatchQuery.h](/include/longMatchQuery.h): Long match query versions. 
 # Compilation
 Compilation of code including the header files provided in this repository requires the use of the GBWT library (https://github.com/jltsiren/gbwt). The specific version this code was built on is available at https://github.com/jltsiren/gbwt/blob/0bfeb0723bdc71db075aacf99a77704769d56a55. Follow the instructions in the GBWT readme to compile the GBWT library. The GBWT library (and its dependency, vgteam's fork of sdsl-lite) must be linked in order to compile code that uses header files from this repository. Finally note, the requirements are the same as that of the GBWT library: (C++14, OpenMP).
+
+Sample datasets are provided in [/toyData/indexes](/toyData/indexes). The raw paths for these datasets are in [/toyData/raw/](/toyData/raw). 
+
+Running `make` in the [/test/](/test/) directory will compile binaries for each code program described in [Archival](#archival). Running `make test` will run basic tests by verifying structures and performing the paper experiment for the small datasets provided in [/toyData/](/toyData/). Note, `libDir`, `libIncDir`, and `gbwtDir` should be set to the directory that contains the compiled gbwt and sdsl libraries, their header files, and the gbwt binaries respectively.
