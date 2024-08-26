@@ -29,7 +29,9 @@ clean:
 
 rebuild: clean all
 
-test: all
+test: testverify testGenerateandTest
+
+testverify: verifyStructuresAndQueries
 	for base in $(toTest);\
 	do\
 		for size in $(testSizes);\
@@ -38,6 +40,8 @@ test: all
 			./verifyStructuresAndQueries $(dataDir)/$$base/$$base.gbwt $(dataDir)/$$base/$$base.ri $$size;\
 		done;\
 	done
+
+testGenerateandTest: generateIndices doTest
 	for base in $(toTest);\
 	do\
 		echo ./generateIndices $(dataDir)/$$base/$$base $(toRemove);\

@@ -173,7 +173,8 @@ bool longMatchQueriesEqual(const gbwt::GBWT & x, const gbwt::FastLocate & r, con
 bool testIncremental(gbwt::GBWT & x, gbwt::FastLocate & r, FastLCP & l, lf_gbwt::GBWT & lfg, CompText & ct, unsigned n){
     bool overall = true, result, longResult, indexes = true;
     std::random_device rd;
-    unsigned seed = rd();
+    //unsigned seed = rd();
+    unsigned seed = 0x54459889;
     std::cout << "seed for testIncremental: " << seed << "\n";
     std::mt19937_64 gen(seed);
     gbwt::vector_type Q, hap;
@@ -196,7 +197,7 @@ bool testIncremental(gbwt::GBWT & x, gbwt::FastLocate & r, FastLCP & l, lf_gbwt:
             if (!l.verifySuff()) { indexes = false; std::cout << "FastLCP not good!" << std::endl; }
             lfg = lf_gbwt::GBWT(x);
             if (!lfg.verify(x)) {indexes = false; std::cout << "LF GBWT not good!" << std::endl; }
-            ct.buildFullMem(l);
+            ct.buildFullMemPruned(l);
             if (!ct.verifyText()) { indexes = false; std::cout << "CompText not good!" << std::endl; }
         }
         //printGBWTandRindex(std::cout, x, r, l, lfg, ct, std::max(3, logbase10(std::max(x.sequences(), x.sigma())) + 1));
