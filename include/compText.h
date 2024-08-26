@@ -712,18 +712,14 @@ void CompText::buildFullMem(const FastLCP & l) {
                 //assign block blockInd to a run, block blockInd corresponds to [blockInd*s_0, (blockInd+1)*s_0) = [start, end)
                 //where s_0 is the smallest power of 2 larger than or equal to \ceiling(n/r) (and is the block size of the first level of the tree
                 //where n is the total length and r is the number of GBWT logical runs
-                
-                //always look for first primary occurrence in bwt range 
-                
-                //auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), start);
-                //if (it != sampleLocations.end() && *it < end){
-                //    firstLevel.mapsTo[blockInd] = it - sampleLocations.begin();
-                //    firstLevel.offset[blockInd] = start + this->s_0 - *it;
-                //    usedCount += !sampleUsed[firstLevel.mapsTo[blockInd]];
-                //    sampleUsed[firstLevel.mapsTo[blockInd]] = true;
-                //    continue;
-                //}
-                
+                auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), start);
+                if (it != sampleLocations.end() && *it < end){
+                    firstLevel.mapsTo[blockInd] = it - sampleLocations.begin();
+                    firstLevel.offset[blockInd] = start + this->s_0 - *it;
+                    usedCount += !sampleUsed[firstLevel.mapsTo[blockInd]];
+                    sampleUsed[firstLevel.mapsTo[blockInd]] = true;
+                    continue;
+                }
                 //all endmarkers  are sampled therefore [start, end) contains no endmarkers
                 //if [start, end) is not a primary occurrence of T[start, end).
                 //Here we search for a primary occurence
@@ -939,7 +935,7 @@ void CompText::buildFullMemPruned(const FastLCP & l) {
     *this = CompText();
     double start = gbwt::readTimer();
     this->source = &l;
-    //unpruned construction
+    //pruned construction
     if(gbwt::Verbosity::level >= gbwt::Verbosity::FULL)
     {
         std::cerr << "CompText::CompText(): Pruned construction of compressed text data structure. Extracts full text into memory" << std::endl;
@@ -1083,10 +1079,10 @@ void CompText::buildFullMemPruned(const FastLCP & l) {
                 //if [start, end) is not a primary occurrence of T[start, end).
                 //Here we search for a primary occurence
 
-                size_type first = 0;
+                size_type first = 0, j = 0;
                 gbwt::SearchState range = l.rindex->find(fullText.rend() - end, fullText.rend() - start, first);
 
-                for (size_type j = 0, a; j < range.size(); ++j, first = this->source->rindex->locateNext(first)){
+                for (size_type a; j < range.size(); ++j, first = this->source->rindex->locateNext(first)){
                     a = this->FLsuffToTrueSuff(first);
                     auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), a);
                     if (it != sampleLocations.end() && *it < a + (end-start)){
@@ -1096,6 +1092,10 @@ void CompText::buildFullMemPruned(const FastLCP & l) {
                         sampleUsed[firstLevel.mapsTo[blockInd]] = true;
                         break;
                     }
+                }
+                if (j == range.size()){
+                    std::cerr << "CompText::CompText(): Error, no primary occurrences found!" << std::endl;
+                    exit(1);
                 }
             }
             //need to compress mapsto to rank using sampleUnused here. Do once compressing block tree
