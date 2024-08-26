@@ -335,11 +335,8 @@ CompText::CompText(const FastLCP & l): source(&l) {
                 if (it != sampleLocations.end() && *it < end){
                     firstLevel.mapsTo[i] = it - sampleLocations.begin();
                     firstLevel.offset[i] = start + this->s_0 - *it;
-                    #pragma omp critical
-                    {
-                        usedCount += !sampleUsed[firstLevel.mapsTo[i]];
-                        sampleUsed[firstLevel.mapsTo[i]] = true;
-                    }
+                    usedCount += !sampleUsed[firstLevel.mapsTo[i]];
+                    sampleUsed[firstLevel.mapsTo[i]] = true;
                     continue;
                 }
                 //all endmarkers  are sampled therefore [start, end) contains no endmarkers
@@ -356,11 +353,8 @@ CompText::CompText(const FastLCP & l): source(&l) {
                     if (it != sampleLocations.end() && *it < a + (end-start)){
                         firstLevel.mapsTo[i] = it - sampleLocations.begin();
                         firstLevel.offset[i] = a + this->s_0 - *it;
-                        #pragma omp critical
-                        {
-                            usedCount += !sampleUsed[firstLevel.mapsTo[i]];
-                            sampleUsed[firstLevel.mapsTo[i]] = true;
-                        }
+                        usedCount += !sampleUsed[firstLevel.mapsTo[i]];
+                        sampleUsed[firstLevel.mapsTo[i]] = true;
                         break;
                     }
                 }
@@ -802,8 +796,11 @@ void CompText::buildFullMem(const FastLCP & l) {
                     if (it != sampleLocations.end() && *it < end){
                         levels.back().mapsTo[firstBlock] = it - sampleLocations.begin();
                         levels.back().offset[firstBlock] = start + slplus1 - *it;
-                        usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
-                        sampleUsed[levels.back().mapsTo[firstBlock]] = true;
+                        #pragma omp critical
+                        {
+                            usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
+                            sampleUsed[levels.back().mapsTo[firstBlock]] = true;
+                        }
                     }
                     else{
                         //never happens at the beginnning or end, so the block is always of size s_l
@@ -817,16 +814,22 @@ void CompText::buildFullMem(const FastLCP & l) {
                             if (it != sampleLocations.end() && *it < a + (end-start)){
                                 levels.back().mapsTo[firstBlock] = it - sampleLocations.begin();
                                 levels.back().offset[firstBlock] = a + slplus1 - *it;
-                                usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
-                                sampleUsed[levels.back().mapsTo[firstBlock]] = true;
+                                #pragma omp critical
+                                {
+                                    usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
+                                    sampleUsed[levels.back().mapsTo[firstBlock]] = true;
+                                }
                                 break;
                             }
                         }
                     }
                 }
                 else { levels.back().mapsTo[firstBlock] = levels.back().offset[firstBlock] = 0; 
-                    usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
-                    sampleUsed[levels.back().mapsTo[firstBlock]] = true;
+                    #pragma omp critical
+                    {
+                        usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
+                        sampleUsed[levels.back().mapsTo[firstBlock]] = true;
+                    }
                 }
                 //fourth half block
                 end = (k > n-s_l)? n : k+s_l;
@@ -836,8 +839,11 @@ void CompText::buildFullMem(const FastLCP & l) {
                     if (it != sampleLocations.end() && *it < end){
                         levels.back().mapsTo[fourthBlock] = it - sampleLocations.begin();
                         levels.back().offset[fourthBlock] = start + slplus1 - *it;
-                        usedCount += !sampleUsed[levels.back().mapsTo[fourthBlock]];
-                        sampleUsed[levels.back().mapsTo[fourthBlock]] = true;
+                        #pragma omp critical
+                        {
+                            usedCount += !sampleUsed[levels.back().mapsTo[fourthBlock]];
+                            sampleUsed[levels.back().mapsTo[fourthBlock]] = true;
+                        }
                     }
                     else{
                         //never happens at the beginnning or end, so the block is always of size s_l
@@ -850,16 +856,22 @@ void CompText::buildFullMem(const FastLCP & l) {
                             if (it != sampleLocations.end() && *it < a + (end-start)){
                                 levels.back().mapsTo[fourthBlock] = it - sampleLocations.begin();
                                 levels.back().offset[fourthBlock] = a + slplus1 - *it;
-                                usedCount += !sampleUsed[levels.back().mapsTo[fourthBlock]];
-                                sampleUsed[levels.back().mapsTo[fourthBlock]] = true;
+                                #pragma omp critical
+                                {
+                                    usedCount += !sampleUsed[levels.back().mapsTo[fourthBlock]];
+                                    sampleUsed[levels.back().mapsTo[fourthBlock]] = true;
+                                }
                                 break;
                             }
                         }
                     }
                 }
                 else { levels.back().mapsTo[fourthBlock] = levels.back().offset[fourthBlock] = 0; 
-                    usedCount += !sampleUsed[levels.back().mapsTo[fourthBlock]];
-                    sampleUsed[levels.back().mapsTo[fourthBlock]] = true;
+                    #pragma omp critical
+                    {
+                        usedCount += !sampleUsed[levels.back().mapsTo[fourthBlock]];
+                        sampleUsed[levels.back().mapsTo[fourthBlock]] = true;
+                    }
                 }
             }
 
@@ -1163,8 +1175,11 @@ void CompText::buildFullMemPruned(const FastLCP & l) {
                     if (it != sampleLocations.end() && *it < end){
                         levels.back().mapsTo[firstBlock] = it - sampleLocations.begin();
                         levels.back().offset[firstBlock] = start + slplus1 - *it;
-                        usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
-                        sampleUsed[levels.back().mapsTo[firstBlock]] = true;
+                        #pragma omp critical
+                        {
+                            usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
+                            sampleUsed[levels.back().mapsTo[firstBlock]] = true;
+                        }
                     }
                     else{
                         //never happens at the beginnning or end, so the block is always of size s_l
@@ -1178,16 +1193,22 @@ void CompText::buildFullMemPruned(const FastLCP & l) {
                             if (it != sampleLocations.end() && *it < a + (end-start)){
                                 levels.back().mapsTo[firstBlock] = it - sampleLocations.begin();
                                 levels.back().offset[firstBlock] = a + slplus1 - *it;
-                                usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
-                                sampleUsed[levels.back().mapsTo[firstBlock]] = true;
+                                #pragma omp critical
+                                {
+                                    usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
+                                    sampleUsed[levels.back().mapsTo[firstBlock]] = true;
+                                }
                                 break;
                             }
                         }
                     }
                 }
                 else { levels.back().mapsTo[firstBlock] = levels.back().offset[firstBlock] = 0; 
-                    usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
-                    sampleUsed[levels.back().mapsTo[firstBlock]] = true;
+                    #pragma omp critical
+                    {
+                        usedCount += !sampleUsed[levels.back().mapsTo[firstBlock]];
+                        sampleUsed[levels.back().mapsTo[firstBlock]] = true;
+                    }
                 }
                 //fourth half block
                 end = (k > n-s_l)? n : k+s_l;
@@ -1197,8 +1218,11 @@ void CompText::buildFullMemPruned(const FastLCP & l) {
                     if (it != sampleLocations.end() && *it < end){
                         levels.back().mapsTo[fourthBlock] = it - sampleLocations.begin();
                         levels.back().offset[fourthBlock] = start + slplus1 - *it;
-                        usedCount += !sampleUsed[levels.back().mapsTo[fourthBlock]];
-                        sampleUsed[levels.back().mapsTo[fourthBlock]] = true;
+                        #pragma omp critical
+                        {
+                            usedCount += !sampleUsed[levels.back().mapsTo[fourthBlock]];
+                            sampleUsed[levels.back().mapsTo[fourthBlock]] = true;
+                        }
                     }
                     else{
                         //never happens at the beginnning or end, so the block is always of size s_l
@@ -1211,16 +1235,22 @@ void CompText::buildFullMemPruned(const FastLCP & l) {
                             if (it != sampleLocations.end() && *it < a + (end-start)){
                                 levels.back().mapsTo[fourthBlock] = it - sampleLocations.begin();
                                 levels.back().offset[fourthBlock] = a + slplus1 - *it;
-                                usedCount += !sampleUsed[levels.back().mapsTo[fourthBlock]];
-                                sampleUsed[levels.back().mapsTo[fourthBlock]] = true;
+                                #pragma omp critical
+                                {
+                                    usedCount += !sampleUsed[levels.back().mapsTo[fourthBlock]];
+                                    sampleUsed[levels.back().mapsTo[fourthBlock]] = true;
+                                }
                                 break;
                             }
                         }
                     }
                 }
                 else { levels.back().mapsTo[fourthBlock] = levels.back().offset[fourthBlock] = 0; 
-                    usedCount += !sampleUsed[levels.back().mapsTo[fourthBlock]];
-                    sampleUsed[levels.back().mapsTo[fourthBlock]] = true;
+                    #pragma omp critical
+                    {
+                        usedCount += !sampleUsed[levels.back().mapsTo[fourthBlock]];
+                        sampleUsed[levels.back().mapsTo[fourthBlock]] = true;
+                    }
                 }
             }
 
