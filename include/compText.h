@@ -335,8 +335,11 @@ CompText::CompText(const FastLCP & l): source(&l) {
                 if (it != sampleLocations.end() && *it < end){
                     firstLevel.mapsTo[i] = it - sampleLocations.begin();
                     firstLevel.offset[i] = start + this->s_0 - *it;
-                    usedCount += !sampleUsed[firstLevel.mapsTo[i]];
-                    sampleUsed[firstLevel.mapsTo[i]] = true;
+                    #pragma omp critical
+                    {
+                        usedCount += !sampleUsed[firstLevel.mapsTo[i]];
+                        sampleUsed[firstLevel.mapsTo[i]] = true;
+                    }
                     continue;
                 }
                 //all endmarkers  are sampled therefore [start, end) contains no endmarkers
@@ -353,8 +356,11 @@ CompText::CompText(const FastLCP & l): source(&l) {
                     if (it != sampleLocations.end() && *it < a + (end-start)){
                         firstLevel.mapsTo[i] = it - sampleLocations.begin();
                         firstLevel.offset[i] = a + this->s_0 - *it;
-                        usedCount += !sampleUsed[firstLevel.mapsTo[i]];
-                        sampleUsed[firstLevel.mapsTo[i]] = true;
+                        #pragma omp critical
+                        {
+                            usedCount += !sampleUsed[firstLevel.mapsTo[i]];
+                            sampleUsed[firstLevel.mapsTo[i]] = true;
+                        }
                         break;
                     }
                 }
@@ -716,8 +722,11 @@ void CompText::buildFullMem(const FastLCP & l) {
                 if (it != sampleLocations.end() && *it < end){
                     firstLevel.mapsTo[blockInd] = it - sampleLocations.begin();
                     firstLevel.offset[blockInd] = start + this->s_0 - *it;
-                    usedCount += !sampleUsed[firstLevel.mapsTo[blockInd]];
-                    sampleUsed[firstLevel.mapsTo[blockInd]] = true;
+                    #pragma omp critical
+                    {
+                        usedCount += !sampleUsed[firstLevel.mapsTo[blockInd]];
+                        sampleUsed[firstLevel.mapsTo[blockInd]] = true;
+                    }
                     continue;
                 }
                 //all endmarkers  are sampled therefore [start, end) contains no endmarkers
@@ -733,8 +742,11 @@ void CompText::buildFullMem(const FastLCP & l) {
                     if (it != sampleLocations.end() && *it < a + (end-start)){
                         firstLevel.mapsTo[blockInd] = it - sampleLocations.begin();
                         firstLevel.offset[blockInd] = a + this->s_0 - *it;
-                        usedCount += !sampleUsed[firstLevel.mapsTo[blockInd]];
-                        sampleUsed[firstLevel.mapsTo[blockInd]] = true;
+                        #pragma omp critical
+                        {
+                            usedCount += !sampleUsed[firstLevel.mapsTo[blockInd]];
+                            sampleUsed[firstLevel.mapsTo[blockInd]] = true;
+                        }
                         break;
                     }
                 }
@@ -1071,31 +1083,33 @@ void CompText::buildFullMemPruned(const FastLCP & l) {
                 if (it != sampleLocations.end() && *it < end){
                     firstLevel.mapsTo[blockInd] = it - sampleLocations.begin();
                     firstLevel.offset[blockInd] = start + this->s_0 - *it;
-                    usedCount += !sampleUsed[firstLevel.mapsTo[blockInd]];
-                    sampleUsed[firstLevel.mapsTo[blockInd]] = true;
+                    #pragma omp critical
+                    {
+                        usedCount += !sampleUsed[firstLevel.mapsTo[blockInd]];
+                        sampleUsed[firstLevel.mapsTo[blockInd]] = true;
+                    }
                     continue;
                 }
                 //all endmarkers  are sampled therefore [start, end) contains no endmarkers
                 //if [start, end) is not a primary occurrence of T[start, end).
                 //Here we search for a primary occurence
 
-                size_type first = 0, j = 0;
+                size_type first = 0;
                 gbwt::SearchState range = l.rindex->find(fullText.rend() - end, fullText.rend() - start, first);
 
-                for (size_type a; j < range.size(); ++j, first = this->source->rindex->locateNext(first)){
+                for (size_type j = 0, a; j < range.size(); ++j, first = this->source->rindex->locateNext(first)){
                     a = this->FLsuffToTrueSuff(first);
                     auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), a);
                     if (it != sampleLocations.end() && *it < a + (end-start)){
                         firstLevel.mapsTo[blockInd] = it - sampleLocations.begin();
                         firstLevel.offset[blockInd] = a + this->s_0 - *it;
-                        usedCount += !sampleUsed[firstLevel.mapsTo[blockInd]];
-                        sampleUsed[firstLevel.mapsTo[blockInd]] = true;
+                        #pragma omp critical
+                        {
+                            usedCount += !sampleUsed[firstLevel.mapsTo[blockInd]];
+                            sampleUsed[firstLevel.mapsTo[blockInd]] = true;
+                        }
                         break;
                     }
-                }
-                if (j == range.size()){
-                    std::cerr << "CompText::CompText(): Error, no primary occurrences found!" << std::endl;
-                    exit(1);
                 }
             }
             //need to compress mapsto to rank using sampleUnused here. Do once compressing block tree
