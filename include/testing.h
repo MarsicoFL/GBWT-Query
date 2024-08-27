@@ -185,6 +185,7 @@ bool testIncremental(gbwt::GBWT & x, gbwt::FastLocate & r, FastLCP & l, lf_gbwt:
     for (unsigned i = 0; i < paths.size(); i += 2)
         builder.insert(paths[i], true);
 
+    auto logbase10 = [] (gbwt::size_type a) { double log = log10(a); return int(log) + (log > int(log)); };
     for (unsigned i = 0; i < n; ++i){
         Q = generateHaplotype(x, 0.05, 0.025, gen, alphabetSize);
         if (Q.size()){
@@ -200,6 +201,7 @@ bool testIncremental(gbwt::GBWT & x, gbwt::FastLocate & r, FastLCP & l, lf_gbwt:
             ct.buildFullMemPruned(l);
             if (!ct.verifyText()) { indexes = false; std::cout << "CompText not good!" << std::endl; }
         }
+        printGBWTandRindex(std::cout, x, r, l, lfg, ct, std::max(3, logbase10(std::max(x.sequences(), x.sigma())) + 1));
         //printGBWTandRindex(std::cout, x, r, l, lfg, ct, std::max(3, logbase10(std::max(x.sequences(), x.sigma())) + 1));
         result = queriesEqual(x, r, l, lfg, ct, Q = generateHaplotype(x, 0.05, 0.0, gen, alphabetSize));
         if (!result)
