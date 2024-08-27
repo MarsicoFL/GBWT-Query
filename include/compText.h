@@ -1192,7 +1192,7 @@ void CompText::buildFullMemPruned(const FastLCP & l) {
         
         size_type treeAndFirstLevelSize = sdsl::size_in_bytes(this->pathStarts) + 
                 sdsl::size_in_bytes(firstLevel);
-        size_type textSamplesEstimateBits = 2*s_0*firstLevel.mapsTo.size()*sdsl::bits::length(this->source->rindex->index->effective()); //+64?
+        size_type textSamplesEstimateBits = 2*s_0*samplesUsed.size()*sdsl::bits::length(this->source->rindex->index->effective()); //+64?
         sizeEstimate.push_back(treeAndFirstLevelSize + ceilDiv(textSamplesEstimateBits, 8));
         if (gbwt::Verbosity::level>= gbwt::Verbosity::FULL)
         {
@@ -1460,6 +1460,7 @@ void CompText::buildFullMemPruned(const FastLCP & l) {
                     assert(compressedBlock.count(levels.back().mapsTo[i]));
                     levels.back().mapsTo[i] = compressedBlock[levels.back().mapsTo[i]];
                 }
+                assert(samplesUsed.size() == usedCount);
             }
 
             /*std::cout << "After compressiong: " << std::endl;
