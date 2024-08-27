@@ -1091,8 +1091,14 @@ void CompText::buildFullMemPruned(const FastLCP & l) {
                 //assign block blockInd to a run, block blockInd corresponds to [blockInd*s_0, (blockInd+1)*s_0) = [start, end)
                 //where s_0 is the smallest power of 2 larger than or equal to \ceiling(n/r) (and is the block size of the first level of the tree
                 //where n is the total length and r is the number of GBWT logical runs
-                auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), start);
-                if (it != sampleLocations.end() && *it < end){
+
+                //if block has an endmarker
+                if (pathStarts.predecessor(end)->second > start) {
+                    //use first sampled position in block, guaranteed to exist since endmarker will be sampled
+                    //could use endmarker sample instead of first sample position
+                    auto it = std::lower_bound(sampleLocations.begin(), sampleLocations.end(), start);
+                    assert(it != sampleLocations.end());
+                    assert(*it < end);
                     firstLevel.mapsTo[blockInd] = it - sampleLocations.begin();
                     firstLevel.offset[blockInd] = start + this->s_0 - *it;
                     #pragma omp critical
@@ -1106,8 +1112,10 @@ void CompText::buildFullMemPruned(const FastLCP & l) {
                 //if [start, end) is not a primary occurrence of T[start, end).
                 //Here we search for a primary occurence
 
+                //Here we search for a primary occurence
                 size_type first = 0;
                 gbwt::SearchState range = l.rindex->find(fullText.rend() - end, fullText.rend() - start, first);
+                bool found = false;
 
                 for (size_type j = 0, a; j < range.size(); ++j, first = this->source->rindex->locateNext(first)){
                     a = this->FLsuffToTrueSuff(first);
@@ -1120,9 +1128,12 @@ void CompText::buildFullMemPruned(const FastLCP & l) {
                             usedCount += !sampleUsed[firstLevel.mapsTo[blockInd]];
                             sampleUsed[firstLevel.mapsTo[blockInd]] = true;
                         }
+                        found = true;
                         break;
                     }
                 }
+
+                assert(found);
             }
             //need to compress mapsto to rank using sampleUnused here. Do once compressing block tree
             if (gbwt::Verbosity::level>= gbwt::Verbosity::FULL)
