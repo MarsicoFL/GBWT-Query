@@ -172,6 +172,10 @@ bool longMatchQueriesEqual(const gbwt::GBWT & x, const gbwt::FastLocate & r, con
 //Testing Queries through incremental GBWT building and querying
 bool testIncremental(gbwt::GBWT & x, gbwt::FastLocate & r, FastLCP & l, lf_gbwt::GBWT & lfg, CompText & ct, unsigned n){
     bool overall = true, result, longResult, indexes = true;
+    if (!l.verifySuff()) { indexes = false; std::cout << "FastLCP not good!" << std::endl; }
+    if (!lfg.verify(x)) {indexes = false; std::cout << "LF GBWT not good!" << std::endl; }
+    if (!ct.verifyText()) { indexes = false; std::cout << "CompText not good!" << std::endl; }
+
     std::random_device rd;
     //unsigned seed = rd();
     unsigned seed = 0x54459889;
