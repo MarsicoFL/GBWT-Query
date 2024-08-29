@@ -104,7 +104,7 @@ namespace lf_gbwt{
         // Returns `offset` such that `LF(offset) == (to, i)`, or `invalid_offset()`
         // if there is no such offset.
         // This can be used for computing inverse LF in a bidirectional GBWT.
-        size_type offsetTo(gbwt::node_type to, size_type i) const;
+        size_type offsetTo(gbwt::comp_type to, size_type i) const;
 
         // As above, but also reports the closed offset range ('run') and the identifier
         // ('run_id') of the logical run used for computing LF().
@@ -150,10 +150,92 @@ namespace lf_gbwt{
         }
     };
 
+    //The GBWT is split into two subsets, one of small records and one of large records
+    //small records are those with outdegree <  maxOutDegree
+    struct SmallRecordArray{
+        type_def gbwt::size_type size_type;
+
+        size_type maxOutdegree = 0;
+        size_type records;
+
+        sdsl::sd_vector<> outDegreePrefixSum;
+
+        sdsl::sd_vector<> emptyRecords;
+
+        //bit vector, if the c-th set bit (0-indexed) is at position i in prefixSum,
+        //then, i is c + the sum of the lengths of all nodes < c 
+        //has \sigma set bits
+        //note by GBWT assumption, \sigma < 2^32 and sum of their lengths <= (2^32 - 1)^2
+        //therefore the max length of this array is 2^64  - 2^33 + 1 + 2^32 - 1 = 2^64 - 2^32
+        sdsl::sd_vector<> prefixSum;
+
+        //outgoing[i*maxOutdegree + j] stores the value BWT.rank(v,j) where v is the i-th node in the small record array
+        sdsl::int_vector<0> outgoing;
+
+        //stores start positions of runs of each node concatenated, starting at prefixSum
+        sdsl::sd_vector<> first;
+
+        //bit vector of length prefixSum.length() * maxOutdegree
+        //call prefixSum(i) the position of the i-th set bit in prefix sum
+        //call the i-th window (0-indexed) [maxOutdegree*prefixSum(i), maxOutdegree*prefixSum(i) + (prefixSum(i+1) - prefixSum(i+) - 1)*maxOutdegree)
+        //the has maxOutdegree sections, each of length prefixSum(i+1) - prefixSum(i) - 1 (the length of the node)
+        //the i-th window is equivalent to firstByAlphabet if this node was a CompressedRecord
+        sdsl::sd_vector<>firstByAlphabet;
+
+
+        //bit vector of length prefixSum.length()
+        //call the i-th window (0-indexed) [prefixSum(i), prefixSum(i+1))
+        //this windodw is equivalent to firstByAlphComp if node i was a CompressedRecord
+        sdsl::sd_vector<> firstByAlphComp; 
+
+        //bit vector of length \sigma^2
+        //\sigma is the size the number of nodes in the GBWT ( = gbwt.effective())
+        //note by GBWT assumption, \sigma <= 2^32
+        //the i-th bit is set if the i/\sigma-th node has an edge to i%\sigma
+        sdsl::sd_vector<> alphabet;
+
+        //stores the mapped alphabet value of the BWT run
+        //concatenated for all smallRecords
+        sdsl::int_vector<0> alphabetByRun;
+
+        size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
+        void load(std::istream& in);
+
+        size_type size(size_type node) const;
+        bool empty(size_type node) const;
+        std::pair<size_type, size_type> runs(size_type node) const;
+        size_type outdegree(size_type node) const;
+
+        gbwt::edge_type LF(size_type node, size_type pos) const;
+
+        size_type offsetTo(size_type node, gbwt::comp_type to, size_type i) const;
+
+        gbwt::edge_type LF(size_type node, size_type i, gbwt::range_type& run, size_type& run_id) const;
+
+        gbwt::edge_type runLF(size_type node, size_type i, size_type& run_end) const;
+
+        size_type LF(size_type node, size_type i, size_type& run_end) const;
+
+        gbwt::range_type LF(size_type node, gbwt::range_type range, gbwt::comp_type to) const;
+
+        size_type compAlphabetAt(size_type node, size_type i) const {}; 
+
+        gbwt::comp_type bwtAt(size_type node, size_type i) const {};
+
+        bool hasEdge(size_type node, gbwt::compt_type to) const {};
+
+        gbwt::comp_type successor(size_type node, gbwt::rank_type outrank) const {};
+
+        size_type offset(size_type node, gbwt::rank_type outrank) const {};
+
+        size_type logicalRunId(size_type node, size_type i) const {};
+
+    };
+
     class GBWT
     {
         public:
-            typedef CompressedRecord::size_type size_type;
+            typedef gbwt::size_type size_type;
 
             //------------------------------------------------------------------------------
 
@@ -264,7 +346,9 @@ namespace lf_gbwt{
 
             gbwt::GBWTHeader  header;
             gbwt::Tags        tags;
-            std::vector<CompressedRecord> bwt;
+            sdsl::sd_vector<> isSmall;
+            SmallRecordArray smallRecords;
+            std::vector<CompressedRecord> largeRecords;
             gbwt::Metadata    metadata;
 
             // Decompress and cache the endmarker, because decompressing it is expensive.
@@ -276,6 +360,7 @@ namespace lf_gbwt{
                Internal interface. Do not use.
             */
 
+            std::pair<bool, gbwt::size_type> compToSmallLargeIndex(gbwt::comp_type comp) const {}
 
             const CompressedRecord& record(gbwt::node_type node) const { 
                 if (!this->contains(node))
@@ -558,13 +643,72 @@ namespace lf_gbwt{
         {
             std::cerr << "lf_GBWT::GBWT::GBWT(): Constructing " << source.effective() << " nodes of total length " << this->size() << std::endl;
         }
-        this->bwt.resize(source.effective());
-        source.bwt.forEach([this] (size_type a, const gbwt::CompressedRecord& rec) {this->bwt[a] = CompressedRecord(rec, this);});
+        std::vector<CompressedRecord> bwt;
+        bwt.resize(source.effective());
+        source.bwt.forEach([this] (size_type a, const gbwt::CompressedRecord& rec) {bwt[a] = CompressedRecord(rec, this);});
         if(gbwt::Verbosity::level >= gbwt::Verbosity::BASIC)
         {
             double seconds = gbwt::readTimer() - bwtStart;
             std::cerr << "lf_GBWT::GBWT::GBWT(): Constructed " << source.effective() << " nodes of total length " << this->size() << " in " << seconds << " seconds" << std::endl;
         }
+
+        double smallRecordsStart = gbwt::readTimer();
+        if(gbwt::Verbosity::level >= gbwt::Verbosity::BASIC)
+        {
+            std::cerr << "lf_GBWT::GBWT::GBWT(): Computing maxOutdegree for SmallRecordArray " << std::endl;
+        }
+        size_type maxOutdegreeFound = 0;
+        //maps from outdegree a tuple (a,b,c) where 
+        //a is the number of bytes of compressed records with that outdegree, 
+        //b is the number of compressed records with that outdegree, and 
+        //c is the total length of all nodes of this size
+        std::unordered_map<size_type, std::tuple<size_type, size_type, size_type>> outdegreeCounts;
+        #pragma omp parallel for schedule(dynamic, 1)
+        for (const CompressedRecord& rec : bwt) {
+            size_type outdegree = rec.outdegree();
+            size_type bytes = sdsl::size_in_bytes(rec);
+            size_type length = rec.size();
+
+            #pragma omp critical 
+            {
+                std::tuple<size_type, size_type, size_type> &val = outdegreeCounts[outdegree];
+                maxOutdegreeFound = std::max(maxOutdegreeFound, outdegree);
+                //if C++17 supported, replace with structured binding declaration
+                //at the moment minimum is C++14
+                std::get<0>(val) += bytes;
+                std::get<1>(val)++;
+                std::get<2>(val) += length;
+            }
+        }
+        if(gbwt::Verbosity::level >= gbwt::Verbosity::BASIC)
+        {
+            std::cerr << "lf_GBWT::GBWT::GBWT(): Finished getting sizes, counts, and lengths by outdegree. There are " 
+                << outdegreeCounts.size() << " unique outdegrees and the maximum is " << maxOutdegreeFound << "." << std::endl;
+        }
+
+        SmallRecordArray temp;
+        size_type nextOutdegree = 0;
+        while (true) {
+            //find nextOutdegree to add
+            while (nextOutdegree < maxOutdegreeFound + 1 && !outdegreeCounts.contains(nextOutdegree))
+                ++nextOutdegree;
+            if (nextOutdegree >= maxOutdegreeFound + 1) 
+                break;
+            if(gbwt::Verbosity::level >= gbwt::Verbosity::BASIC)
+            {
+                std::cerr << "lf_GBWT::GBWT::GBWT(): Computing if nodes with outdegree " << nextOutdegree << " should be stored in the smallRecordArray or in largeRecords."
+                    << " There are " << std::get<1>(outdegreeCounts[nextOutdegree]) << " nodes with this outdegree. They have a total length of " << std::get<2>(outdegreeCounts[nextOutdegree])
+                    << ". They take a total of " << std::get<0>(outdegreeCounts[nextOutdegree]) << " bytes." << std::endl;
+            }
+            if (nextOutdegree == 0) {
+                temp.maxOutdegree = 1;
+                temp.records = std::get<1>(outdegreeCounts[nextOutdegree]);
+                continue;
+            }
+
+            
+        }
+        
 
         //this->bwt.shrink_to_fit();
         if(gbwt::Verbosity::level >= gbwt::Verbosity::BASIC)
