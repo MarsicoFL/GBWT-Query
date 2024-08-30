@@ -12,7 +12,9 @@ headers = $(indexHeaders) $(utilHeaders) $(queryHeaders)
 
 LDFLAGS = -L$(libDir)/ 
 LDLIBS = -lgbwt -lsdsl 
-CXXFLAGS = -std=c++14 -fopenmp -O3 -I$(includeDir) -I$(libIncDir)
+WARNINGFLAGS = -Wall -Weffc++ -Wextra -Wconversion -Wsign-conversion
+CXXFLAGS = -std=c++14 -fopenmp -O3 -I$(includeDir) -I$(libIncDir) $(WARNINGFLAGS)
+
 
 dataDir = ../toyData/indexes
 toTest = bi_fig1 bi_fig1_repeated128
