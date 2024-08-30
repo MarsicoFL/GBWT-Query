@@ -135,7 +135,9 @@ namespace lf_gbwt{
         // These assume that 'outrank' is a valid outgoing edge.
         gbwt::comp_type successor(gbwt::rank_type outrank) const { return this->alphabet.select_iter(outrank+1)->second; }
         //gbwt::node_type successor(gbwt::rank_type outrank) const { return this->alphabet.successor(outrank)->second; }
-        size_type offset(gbwt::rank_type outrank) const { return this->outgoing[outrank]; }
+        
+        //what is this? when is it used?
+        //size_type offset(gbwt::rank_type outrank) const { return this->outgoing[outrank]; }
 
         //returns the run id by logical runs of an offset
         size_type logicalRunId(size_type i) const {
@@ -146,6 +148,9 @@ namespace lf_gbwt{
                 return concRunId;
             size_type num0RunsBefore = this->firstByAlphabet.successor(i)->first;
             size_type num0Before = this->firstByAlphComp.select_iter(num0RunsBefore+1)->second;
+            //error if in the middle of an endmarker run? counts endmarkers past current
+            //if ((*this)[i] == gbwt::ENDMARKER) {
+            //  num0Before -= (++this->first.predecessor(i))->second - i;
             return concRunId - num0RunsBefore + num0Before;
         }
     };
@@ -156,7 +161,8 @@ namespace lf_gbwt{
         type_def gbwt::size_type size_type;
 
         size_type maxOutdegree = 0;
-        size_type records;
+        size_type records = 0;
+        size_type effective = 0;
 
         sdsl::sd_vector<> outDegreePrefixSum;
 
@@ -170,6 +176,7 @@ namespace lf_gbwt{
         sdsl::sd_vector<> prefixSum;
 
         //outgoing[i*maxOutdegree + j] stores the value BWT.rank(v,j) where v is the i-th node in the small record array
+        //above wrong, use prefix sum
         sdsl::int_vector<0> outgoing;
 
         //stores start positions of runs of each node concatenated, starting at prefixSum
@@ -192,6 +199,8 @@ namespace lf_gbwt{
         //\sigma is the size the number of nodes in the GBWT ( = gbwt.effective())
         //note by GBWT assumption, \sigma <= 2^32
         //the i-th bit is set if the i/\sigma-th node has an edge to i%\sigma
+        //
+        //emptynodes windows of length gbwt.effective()
         sdsl::sd_vector<> alphabet;
 
         //stores the mapped alphabet value of the BWT run
@@ -201,34 +210,39 @@ namespace lf_gbwt{
         size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = nullptr, std::string name = "") const;
         void load(std::istream& in);
 
-        size_type size(size_type node) const;
-        bool empty(size_type node) const;
-        std::pair<size_type, size_type> runs(size_type node) const;
-        size_type outdegree(size_type node) const;
+        //these assume node is a valid index in smallRecordArray
+        size_type size(const size_type node) const;
+        bool empty(const size_type node) const;
+        std::pair<bool, size_type> emptyAndNonEmptyIndex(const size_type node) const;
+        std::pair<size_type, size_type> runs(const size_type node) const;
+        size_type outdegree(const size_type node) const;
+        size_type nonEmptyRecords() const { return records - emptyRecords.ones(); }
 
-        gbwt::edge_type LF(size_type node, size_type pos) const;
+        gbwt::edge_type LF(const size_type node, const size_type pos) const;
 
-        size_type offsetTo(size_type node, gbwt::comp_type to, size_type i) const;
+        size_type offsetTo(const size_type node, const gbwt::comp_type to, const size_type i) const;
 
-        gbwt::edge_type LF(size_type node, size_type i, gbwt::range_type& run, size_type& run_id) const;
+        gbwt::edge_type LF(const size_type node, const size_type i, gbwt::range_type& run, size_type& run_id) const;
 
-        gbwt::edge_type runLF(size_type node, size_type i, size_type& run_end) const;
+        gbwt::edge_type runLF(const size_type node, const size_type i, size_type& run_end) const;
 
-        size_type LF(size_type node, size_type i, size_type& run_end) const;
+        size_type LF(const size_type node, const size_type i, const gbwt::comp_type to) const;
 
-        gbwt::range_type LF(size_type node, gbwt::range_type range, gbwt::comp_type to) const;
+        gbwt::range_type LF(const size_type node, const gbwt::range_type range, const gbwt::comp_type to) const;
 
-        size_type compAlphabetAt(size_type node, size_type i) const {}; 
+        size_type compAlphabetAt(const size_type node, const size_type i) const {}; 
 
-        gbwt::comp_type bwtAt(size_type node, size_type i) const {};
+        gbwt::comp_type bwtAt(const size_type node, const size_type i) const {};
 
-        bool hasEdge(size_type node, gbwt::compt_type to) const {};
+        bool hasEdge(const size_type node, const gbwt::comp_type to) const {};
+
+        gbwt::rank_type edgeTo(const gbwt::size_type node, const gbwt::comp_type to) const;
 
         gbwt::comp_type successor(size_type node, gbwt::rank_type outrank) const {};
 
         size_type offset(size_type node, gbwt::rank_type outrank) const {};
 
-        size_type logicalRunId(size_type node, size_type i) const {};
+        size_type logicalRunId(const size_type node, const size_type i) const {};
 
     };
 
@@ -435,6 +449,8 @@ namespace lf_gbwt{
 
     const std::string GBWT::EXTENSION = ".lfgbwt"; // .lfgbwt
 
+    //CompressedRecord member functions
+
     CompressedRecord::CompressedRecord(const gbwt::CompressedRecord & rec, const GBWT *source){
         size_type n = rec.size(), sigma = rec.outgoing.size(), runs = rec.runs().first;
         if (n == 0)
@@ -530,6 +546,244 @@ namespace lf_gbwt{
         gbwt::comp_type next = (*this)[i];
         return {next, this->LF(i, next)};
     }
+
+    //SmallRecordArray member functions
+
+    SmallRecordArray::size_type SmallRecordArray::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) {
+        sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+        size_type written_bytes = 0;
+
+        written_bytes += sdsl::serialize(this->maxOutdegree, out, child, "maxOutdegree");
+        written_bytes += sdsl::serialize(this->records, out, child, "records");
+        written_bytes += sdsl::serialize(this->outDegreePrefixSum, out, child, "outDegreePrefixSum");
+        written_bytes += sdsl::serialize(this->emptyRecords, out, child, "emptyRecords");
+        written_bytes += sdsl::serialize(this->prefixSum, out, child, "prefixSum");
+        written_bytes += sdsl::serialize(this->outgoing, out, child, "outgoing");
+        written_bytes += sdsl::serialize(this->first, out, child, "first");
+        written_bytes += sdsl::serialize(this->firstByAlphabet, out, child, "firstByAlphabet");
+        written_bytes += sdsl::serialize(this->firstByAlphComp, out, child, "firstByAlphComp");
+        written_bytes += sdsl::serialize(this->alphabet, out, child, "alphabet");
+        written_bytes += sdsl::serialize(this->alphabetByRun, out, child, "alphabetByRun");
+
+        sdsl::structure_tree::add_size(child, written_bytes);
+        return written_bytes;
+    }
+
+    void SmallRecordArray::load(std::istream& in) {
+        sdsl::load(this->maxOutdegree, in);
+        sdsl::load(this->records, in);
+        sdsl::load(this->outDegreePrefixSum, in);
+        sdsl::load(this->emptyRecords, in);
+        sdsl::load(this->prefixSum, in);
+        sdsl::load(this->outgoing, in);
+        sdsl::load(this->first, in);
+        sdsl::load(this->firstByAlphabet, in);
+        sdsl::load(this->firstByAlphComp, in);
+        sdsl::load(this->alphabet, in);
+        sdsl::load(this->alphabetByRun, in);
+    }
+
+    SmallRecordArray::size_type SmallRecordArray::size(const SmallRecordArray::size_type node) const {
+        assert(node < records);
+        auto p = emptyAndNonEmptyIndex(node);
+        if (p.first) return 0;
+        auto it = prefixSum.select(p.second + 1);
+        size_type beg = (it++)->second;
+        return it->second - beg;
+    }
+
+    bool SmallRecordArray::empty(const size_type node) const {
+        assert(node < records);
+        return emptyRecords[node];
+    }
+
+    std::pair<bool, SmallRecordArray::size_type> emptyAndNonEmptyIndex(const SmallRecordArray::size_type node) const {
+        assert(node < records);
+        auto it = emptyRecords.successor(node);
+        return {it->second == node, node - it->first};
+    }
+
+    std::pair<SmallRecordArray::size_type, SmallRecordArray::size_type> runs(const SmallRecordArray::size_type) const {
+        assert (node < records);
+        auto pos = emptyAndNonEmptyIndex(node);
+        if (pos.first) return {0, 0};
+        auto end = prefixSum.select(p.second + 1);
+        auto beg = end++; 
+        auto runBeg = first.successor(beg->second);
+        auto runEnd = first.successor(end->second);
+        assert(runBeg->second == beg->second);
+        assert(runEnd->second == end->second);
+        size_type concRuns = runEnd->first - runBeg->first;
+        //check if this has an edge to the endmarker
+        if (!alphabet[pos.second*effective])
+            return {concRuns, concRuns};
+        auto begAlphRun = firstByAlphabet.successor(maxOutdegree*beg->second);
+        auto endAlphRun = firstByAlphabet.successor(maxOutdegree*beg->second + (end->second - beg->second));
+        size_type numENDMARKERruns = endAlphRun->first - begAlphRun->first;
+        assert(numENDMARKERruns > 0);
+        size_type numENDMARKERS = firstByAlphComp.select_iter(endAlphRun->first)->second - firstByAlphComp.select_iter(begAlphRun->first)->second;
+        assert(numENDMARKERS > 0);
+        return {concRuns, concRuns - numENDMARKERruns + numENDMARKERS};
+    }
+
+    SmallRecordArray::size_type outdegree(const SmallRecordArray::size_type node) const {
+        assert(node < records);
+        auto pos = emptyAndNonEmptyIndex(node);
+        if (pos.first) return 0;
+        size_type n = nonEmptyRecords(); 
+        size_type ans = alphabet.successor(n*pos.second + n)->first - alphabet.successor(effective*pos.second)->first;
+        assert(ans != 0);
+        return ans;
+    }
+
+    gbwt::edge_type SmallRecordArray::LF(const SmallRecordArray::size_type node, const SmallRecordArray::size_type pos) const {
+        assert (node < records);
+        if (pos >= size(node))
+            return gbwt::invalid_edge();
+        gbwt::comp_type next = bwtAt(node, pos);
+        return {next, LF(node, next, pos)};
+    }
+    
+    SmallRecordArray::size_type SmallRecordArray::offsetTo(const SmallRecordArray::size_type node, const gbwt::comp_type to, const SmallRecordArray::size_type i) const {
+        assert(node < records);
+        auto p = emptyAndNonemptyIndex(node);
+        if (p.first) return gbwt::invalid_offset();
+        size_type outrank = edgeTo(node, to);
+        if (outrank == gbwt::invalid_offset()) return gbwt::invalid_offset();
+        size_type n = nonEmptyRecords();
+        size_type outgoingPrefixSum = alphabet.successor(p.second * effective)->first;
+        i -= outgoing[outgoingPrefixSum + outrank];
+        auto prefixEnd = prefixSum.select_iter(p.second + 1);
+        auto prefixBeg = prefixEnd++;
+        size_type lengthPrefixSum = prefixBeg->second;
+        size_type nodeLength = prefixEnd->second - prefixBeg->second;
+
+        auto firstToRun = firstByAlphabet.successor((lengthPrefixSum * maxOutdegree) + nodeLength*outrank);
+        auto firstToCompRun = firstByAlphComp.select_iter(firstToRun->first+1);
+
+        auto runComp = firstByAlphComp.predecessor(firstToCompRun->second + i);
+        i -= (runComp->second - firstToCompRun->second);
+        auto run = firstByAlphabet.select_iter(runComp->first+1);
+        if ((run->second - (lengthPrefixSum * maxOutdegree))/nodeLength != outrank)
+            return gbwt::invalid_offset();
+        return (run->second - (lengthPrefixSum*maxOutdegree) - (outrank*nodeLength)) + i;
+    }
+
+    gbwt::edge_type SmallRecordArray::LF(const SmallRecordArray::size_type node, const SmallRecordArray::size_type i, gbwt::range_type& run, SmallRecordArray::size_type& run_id) const {
+        assert(node < records);
+        size_type nodeLength = size(node);
+        if (i >= nodeLength){
+            run.first = run.second = gbwt::invalid_offset();
+            run_id = gbwt::invalid_offset();
+            return gbwt::invalid_edge();
+        }
+        size_type nonEmptyIndex = emptyAndNonemptyIndex(node)->second;
+        run_id = logicalRunId(node, i);
+        auto prefixBeg = prefixSum.select_iter(p.second + 1);
+        auto it = first.predecessor(prefixBeg->second + i);
+        run.first = it->second - prefixBeg->second;
+        ++it;
+        run.second = it->second - prefixBeg->second - 1;
+
+        return LF(node, i);
+    }
+
+    SmallRecordArray::size_type SmallRecordArray::LF(const SmallRecordArray::size_type node, const SmallRecordArray::size_type i, const gbwt::comp_type to) const {
+        assert(node < records);
+        size_type nodeLength = size(node);
+        bool isEmpty;
+        size_type nonEmptyIndex;
+        std::tie(isEmpty, nonEmptyIndex) = emptyAndNoneEmptyIndex(node);
+        //why > instead of >=?
+        if (isEmpty || i > nodeLength || !hasEdge(node, to))
+            return gbwt::invalid_offset();
+        size_type outrank = edgeTo(node, to);
+        if (outrank == gbwt::invalid_offset()) return gbwt::invalid_offset();
+        auto prefixBeg = prefixSum.select_iter(nonEmptyIndex + 1);
+        size_type lengthPrefixSum = prefixBeg->second;
+        auto nextRun = firstByAlphabet.successor((lengthPrefixSum*maxOutdegree) + (outrank*nodeLength) + i);
+        auto firstOutrankRun = firstByAlphabet.successor((lengthPrefixSum*maxOutdegree) + (outrank*nodeLength));
+        auto nextRunComp = firstByAlphComp.select_iter(nextRun->first+1);
+        auto firstOutrankComp = firstByAlphComp.select_iter(firstOutrankRun->first+1);
+        size_type numOutrank = nextRunComp->second - firstOutrankRunComp->second;
+        if (bwtAt(node, i) == to) {
+            size_type afteriInRun = this->first.successor(lengthPrefixSum + i)->second - lengthPrefixSum - i;
+            numOutrank -= afteriInRun;
+        }
+        size_type outgoingPrefixSum = alphabet.successor(nonEmptyIndex*effective)->first;
+
+        return outgoing[outgoingPrefixSum + outrank] + numOutrank;
+    }
+
+    SmallRecordArray::size_type SmallRecordArray::compAlphabetAt(const SmallRecordArray::size_type node, const SmallRecordArray::size_type i) const {
+        assert (node < records);
+        auto p = emptyAndNonemptyIndex(node);
+        if (p.first) return gbwt::invalid_offset();
+        if (i >= size(node)) return gbwt::invalid__offset();
+        size_type lengthPrefixSum = prefixSum.select_iter(p.second + 1);
+        size_type runInd = first.predecessor(lengthPrefixSum + i)->first;
+        return alphabetByRun[runInd];
+    }
+
+    SmallRecordArray::size_type bwtAt(const SmallRecordArray::size_type node, const SmallRecordArray::size_type i) const {
+        assert (node < records);
+        auto p = emptyAndNonemptyIndex(node);
+        if (p.first) return gbwt::invalid_offset();
+        if (i >= size(node)) return gbwt::invalid__offset();
+        size_type outrank = compAlphabetAt(node, i);
+        auto it = alphabet.select_iter(outrank + alphabet.successor(p.second*effective)->first + 1);
+        return it->second - p.second*nonEmptyRecords();
+    }
+
+    bool SmallRecordArray::hasEdge(const SmallRecordArray::size_type node, const gbwt::comp_type to) const {
+        return edgeTo(to) != gbwt::invalid_offset();
+    }
+
+    gbwt::rank_type SmallRecordArray::edgeTo(const gbwt::size_type node, const gbwt::comp_type to) const {
+        assert(node < records);
+        auto p = emptyAndNonemptyIndex(node);
+        if (p.first) return gbwt::invalid_offset();
+        size_type n = nonEmptyRecords();
+        auto it = alphabet.successor(effective*p.second + to);
+        return (it->second == effective*p.second + to)? it->first - alphabet.successor(effective*p.second)->first : gbwt::invalid_offset();
+    }
+
+    gbwt::comp_type SmallRecordArray::successor(const SmallRecordArray::size_type node, const gbwt::rank_type outrank) const {
+        assert(node < records);
+        auto p = emptyAndNonemptyIndex(node);
+        if (p.first) return gbwt::invalid_offset();
+        auto it = alphabet.select_iter(alphabet.successor(effective*p.second)->first + outrank + 1);
+        if (it->second >= effective*(p.second+1))
+            return gbwt::invalid_offset();
+        return it->second - (effective*p.second);
+    }
+
+    SmallRecordArray::size_type SmallRecordArray::logicalRunId(const SmallRecordArray::size_type node, const SmallRecordArray::size_type i) {
+        assert(node < records);
+        size_type nodeLength = size(node);
+        if (i >= nodeLength)
+            return gbwt::invalid_offset();
+        size_type nonEmptyIndex = emptyAndNonemptyIndex(node)->second;
+        auto prefixBeg = prefixSum.select_iter(p.second + 1);
+        auto it = first.predecessor(prefixBeg->second + i);
+        assert(first[prefixBeg->second] && first.predecessor(prefixBeg->second)->second == prefixBeg->second);
+        size_type concRunId = it->first - first.predecessor(prefixBeg->second)->first;
+        if (!hasEdge(node, gbwt::ENDMARKER))
+            return concRunId;
+        size_type num0RunsBefore = firstByAlphabet.successor(p.second*effective+i)->first;
+        size_type num0Before = firstByAlphComp.select_iter(num0RunsBefore + 1)->second;
+        auto alphPref = firstByAlphabet.successor(p.second*effective);
+        num0RunsBefore -= alphPref->first;
+        num0Before -= this->firstByAlphComp.select_iter(alphPref->first + 1)->second;
+        if (bwtAt(node, i) == gbwt::ENDMARKER) {
+            //remove 0s after i from num0before
+            ++it;
+            num0Before -= it->second - i - prefixBeg->second;
+        }
+        return concRunId - num0RunsBefore + num0Before;
+    }
+
+    //GBWT member functions
 
     gbwt::node_type GBWT::predecessorAt(gbwt::node_type revFrom, size_type i) const {
         auto revNode = [this](gbwt::comp_type x) { 
@@ -685,15 +939,19 @@ namespace lf_gbwt{
             std::cerr << "lf_GBWT::GBWT::GBWT(): Finished getting sizes, counts, and lengths by outdegree. There are " 
                 << outdegreeCounts.size() << " unique outdegrees and the maximum is " << maxOutdegreeFound << "." << std::endl;
         }
+        //initialize this for if maxOutdegree = 0
+        this->isSmall = sdsl::sd_vector<>(sdsl::sd_vector_builder(bwt.size(), 0));
+        this->largeRecords = bwt;
 
-        SmallRecordArray temp;
-        size_type nextOutdegree = 0;
-        while (true) {
+        SmallRecordArray tempSmallRecords;
+        sdsl::sd_vector<> tempIsSmall;
+        std::vector<CompressedRecord> tempLargeRecords;
+        assert(maxOutdegreeFound < size_type(1) << size_type(32));
+        for (size_type nextOutdegree = 0; nextOutdegree < maxOutdegreeFound + 1; ++nextOutdegree) {
             //find nextOutdegree to add
-            while (nextOutdegree < maxOutdegreeFound + 1 && !outdegreeCounts.contains(nextOutdegree))
-                ++nextOutdegree;
-            if (nextOutdegree >= maxOutdegreeFound + 1) 
-                break;
+            if (!outdegreeCounts.contains(nextOutdegree))
+                continue;
+            double thisOutdegreeStart = gbwt::readTimer();
             if(gbwt::Verbosity::level >= gbwt::Verbosity::BASIC)
             {
                 std::cerr << "lf_GBWT::GBWT::GBWT(): Computing if nodes with outdegree " << nextOutdegree << " should be stored in the smallRecordArray or in largeRecords."
@@ -701,16 +959,127 @@ namespace lf_gbwt{
                     << ". They take a total of " << std::get<0>(outdegreeCounts[nextOutdegree]) << " bytes." << std::endl;
             }
             if (nextOutdegree == 0) {
-                temp.maxOutdegree = 1;
-                temp.records = std::get<1>(outdegreeCounts[nextOutdegree]);
-                continue;
+                //remember to add check for if max outdegree == 1, then every node in small records is empty,
+                //no need to check emptyRecords array (it will not be initialized correctly)
+                tempSmallRecords.maxOutdegree = 1;
+                tempSmallRecords.records = std::get<1>(outdegreeCounts[nextOutdegree]);
+            }
+            else {
+                //build smallRecordArray tempSmallRecords with maxOutdegree nextOutdegree+1
+                tempSmallRecords.maxOutdegree = nextOutdegree + 1;
+
+                size_type recordNum = 0, prevOutdegreePrefixSum = 0, prevLengthPrefixSum = 0, 
+                          nonemptyRecordNum = 0;
+                std::vector<size_type> outdegreePrefixSumAssist, alphabetAssist,
+                    emptyRecordsAssist, lengthPrefixSumAssist, outgoingAssist,
+                    firstAssist, firstByAlphabetAssist, alphabetByRunAssist,
+                    firstByAlphCompAssist;
+                for (const CompressedRecord& rec : bwt) {
+                    if (rec.outdegree() >= tempSmallRecords.maxOutdegree) {
+                        largeRecords.push_back(rec);
+                        continue;
+                    }
+                    if (rec.outdegree() == 0) {
+                        emptyRecordsAssist.push_back(recordNum);
+                    }
+                    else {
+                        std::vector<std::vector<std::pair<size_type,size_type>>> localFirstByAlphabetAssist;
+                        firstByAlphabetAssist.resize(tempSmallRecords.maxOutdegree);
+
+                        size_type recLength = rec.size(), lengthPrefixSum = prevLengthPrefixSum;
+                        outdegreePrefixSumAssist.push_back(prevOutdegreePrefixSum);
+                        prevOutdegreePrefixSum += rec.outdegree();
+                        lengthPrefixSumAssist.push_back(prevLengthPrefixSum);
+                        prevLengthPrefixSum += recLength;
+                        for (const auto& edge : rec.outgoing) {
+                            outgoingAssist.push_back(edge.second);
+                            alphabetAssist.push_back((nonemptyRecordNum * this->effective()) + this->toComp(edge.first));
+                        }
+
+                        gbwt::CompressedRecordFullIterator iter(rec);
+                        size_type start, runInd = 0;
+                        while(!iter.end()) {
+                            start = iter.offset() - iter.run.second;
+                            firstAssist.push_back(start + lengthPrefixSumAssist.back());
+                            localFirstByAlphabetAssist[iter.run.first].emplace_back((tempSmallRecords.maxOutdegree * lengthPrefixSum) + (iter.run.first*recLength) + start, iter.run.second);
+                            alphabetByRunAssist.push_back(iter.run.first);
+                            ++iter;
+                        }
+
+                        size_type currInd = lengthPrefixSum;
+                        for (const auto& alphArr : firstByAlphabetAssist) {
+                            for (const auto& a : alphArr) {
+                                firstByAlphabetAssist.push_back(a.first);
+                                firstByAlphCompAssist.push_back(currInd);
+                                currInd += a.second;
+                            }
+                        }
+                        assert(currInd == prevLengthPrefixSum);
+                        ++nonEmptyRecordNum;
+                    }
+                    ++recordNum;
+                }
+                assert(recordNum - nonEmptyRecordNum == emptyRecordsAssist.size());
+                assert(this->effective() < (size_type(1) << size_type(32)));
+
+                //build all structures using assist vectors
+                auto buildSD = [] (sdsl::sd_vector& toBuild, const std::vector<size_type>& data, const size_type size, const size_type setBits) {
+                    //assumes data sorted
+                    //assert(std::is_sorted(data.begin(), data.end());
+                    assert(size >= setBits);
+                    assert(setBits == data.size());
+                    sdsl::sd_vector_builder builder(size, setBits);
+                    for (const size_type& x : data)
+                        builder.set(x);
+                    toBuild = sdsl::sd_vector<>(builder);
+                };
+                auto buildIntVec = [] (sdsl::int_vector<0>& toBuild, const std::vector<size_type>& data) {
+                    toBuild.resize(data.size());
+                    for (size_type i = 0; i < data.size(); ++i)
+                        toBuild[i] = data[i];
+                    sdsl::util::bit_compress(toBuild);
+                };
+                buildSD(tempSmallRecords.outDegreePrefixSum, outdegreePrefixSumAssist, prevOutdegreePrefixSum, nonEmptyRecordNum);
+                buildSD(tempSmallRecords.emptyRecords, emptyRecordsAssists, recordNum, recordNum - nonEmptyRecordNum);
+                buildSD(tempSmallRecords.prefixSum, lengthPrefixSumAssist, prevLengthPrefixSum, nonEmptyRecordNum);
+                builIntVec(tempSmallRecords.outgoing, outgoingAssist);
+                buildSD(tempSmallRecords.first, firstAssist, prevLengthPrefixSum, firstAssist.size());
+                buildSD(tempSmallRecords.firstByAlphabet, firstByAlphabetAssist, prevLengthPrefixSum*maxOutdegree, firstAssist.size());
+                buildSD(tempSmallRecords.firstByAlphComp, firstByAlphCompAssist, prevLengthPrefixSum, firstAssist.size());
+                buildSD(tempSmallRecords.alphabet, alphabetAssist, this->effective()*this->effective, prevOutdegreePrefixSum);
+                buildIntVec(tempSmallRecords.alphabetByRun, alphabetByRunAssist);
             }
 
-            
+            size_type prevIsSmallSize = sdsl::size_in_bytes(isSmall),
+                      prevSmallRecordsSize = sdsl::size_in_bytes(this->smallRecords),
+                      prevLargeRecordsSize = sdsl::size_in_bytes(this->largeRecords),
+                      prevSize = prevIsSmallSize + prevSmallRecordsSize + prevLargeRecordsSize,
+                      tempIsSmallSize = sdsl::size_in_bytes(tempIsSmall),
+                      tempSmallRecordsSize = sdsl::size_in_bytes(tempsmallRecords),
+                      tempLargeRecordsSize = sdsl::size_in_bytes(tempLargeRecords),
+                      tempSize = tempIsSmallSize + tempSmallRecordsSize + tempLargeRecordsSize;
+
+            if(gbwt::Verbosity::level >= gbwt::Verbosity::BASIC)
+            {
+                std::cerr << "lf_GBWT::GBWT::GBWT(): Finished splitting nodes in " << gbwt::readTimer() - thisOutdegreeStart << " seconds." << std::endl
+                    << "Previously, the three structures (isSmall, smallRecords, largeRecords) took " << prevSize << " bytes in total, respectively ( " << prevIsSmallSize << ", " << prevSmallRecordsSize << ", " << prevLargeRecordsSize ")." << std::endl
+                    << "Now, the new structures take                                                " << tempSize << " bytes in total, respectively ( " << tempIsSmallSize << ", " << tempSmallRecordsSize << ", " << tempLargeRecordsSize ")." << std::endl;
+            }
+
+            if (tempSize >= prevSize) {
+                break;
+            }
+
+            this->isSmall = std::move(tempIsSmall);
+            this->SmallRecords = std::move(tempSmallRecords);
+            this->LargeRecords = std::move(tempLargeRecords);
+            tempIsSmall = sdsl::sd_vector<>();
+            tempSmallRecords = SmallRecordArray();
+            tempLargeRecords = std::vector<CompressedRecord>();
         }
         
+        
 
-        //this->bwt.shrink_to_fit();
         if(gbwt::Verbosity::level >= gbwt::Verbosity::BASIC)
         {
             double seconds = gbwt::readTimer() - start;
