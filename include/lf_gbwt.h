@@ -275,8 +275,10 @@ namespace lf_gbwt{
 
             std::pair<size_type, size_type> runs() const;
             std::pair<size_type, size_type> runs(const gbwt::node_type node) const {
+                //std::cout << "In runs(" << node << ")" << std::endl;
                 if (!contains(node))
                    return gbwt::invalid_edge(); 
+                //std::cout << "Valid Node" << std::endl;
                 auto ind = isSmallAndIndex(this->toComp(node));
                 return (ind.first)? this->smallRecords.runs(ind.second) : this->largeRecords[ind.second].runs();
             }
@@ -319,9 +321,12 @@ namespace lf_gbwt{
             gbwt::comp_type toComp(gbwt::node_type node) const { return (node == 0 ? node : node - this->header.offset); }
             gbwt::node_type toNode(gbwt::comp_type comp) const { return (comp == 0 ? comp : comp + this->header.offset); }
             gbwt::node_type bwt(const gbwt::node_type node, const gbwt::size_type i) const {
+                std::cout << "In bwt(node:" << node << ", i: " << i << ")" << std::endl;
                 if (!contains(node))
                     return gbwt::invalid_offset();
+                std::cout << "Valid node" << std::endl;
                 auto ind = isSmallAndIndex(this->toComp(node));
+                std::cout << "ind: (" << ind.first << ", " << ind.second << std::endl;
                 return this->toNode(
                         (ind.first)? this->smallRecords.bwtAt(ind.second, i): this->largeRecords[ind.second][i]
                         );
@@ -348,9 +353,13 @@ namespace lf_gbwt{
             // On error: invalid_edge().
             gbwt::edge_type LF(gbwt::edge_type position) const
             {
+                std::cout << "In bwt( edge:(" << position.first << ", " << position.second << "))" << std::endl;
                 auto ind = this->isSmallAndIndex(this->toComp(position.first));
+                std::cout << "ind: (" << ind.first << ", " << ind.second << ")" << std::endl;
                 gbwt::edge_type ans = (ind.first)? this->smallRecords.LF(ind.second, position.second) : this->largeRecords[ind.second].LF(position.second);
+                std::cout << "ans: (" << ans.first << ", " << ans.second << ")" << std::endl;
                 ans.first = this->toNode(ans.first);
+                std::cout << "ans after toNode: (" << ans.first << ", " << ans.second << ")" << std::endl;
                 return ans;
             }
             
@@ -612,11 +621,19 @@ namespace lf_gbwt{
     }
 
     SmallRecordArray::size_type SmallRecordArray::size(const SmallRecordArray::size_type node) const {
+        //std::cout << "In SmallRecordArray::size(" << node << ")" << std::endl;
         assert(node < records);
         auto p = emptyAndNonEmptyIndex(node);
+        //std::cout << "p: (" << p.first << ", " << p.second << ")" << std::endl;
         if (p.first) return 0;
+        //std::cout << "prefixSum.ones() " << prefixSum.ones() << std::endl;
         auto it = prefixSum.select_iter(p.second + 1);
-        size_type beg = (it++)->second;
+        //std::cout << "*beg: (" << it->first << ", " << it->second << ")" << std::endl;
+        //size_type beg = (it++)->second;
+        size_type beg = it->second;
+        ++it;
+        //std::cout << "*it: (" << it->first << ", " << it->second << ")" << std::endl;
+        //std::cout << "Leaving SmallRecordArray::size(" << node << ")" << std::endl;
         return it->second - beg;
     }
 
@@ -632,11 +649,15 @@ namespace lf_gbwt{
     }
 
     std::pair<SmallRecordArray::size_type, SmallRecordArray::size_type> SmallRecordArray::runs(const SmallRecordArray::size_type node) const {
+        //std::cout << "Entering SmallRecordArray::runs(" << node << ")" << std::endl;
         assert (node < records);
         auto pos = emptyAndNonEmptyIndex(node);
         if (pos.first) return {0, 0};
         auto end = prefixSum.select_iter(pos.second + 1);
-        auto beg = end++; 
+        //std::cout << "Post increment bug?" << std::endl;
+        auto beg = end;
+        ++end;
+        //std::cout << "Post increment bug?" << std::endl;
         auto runBeg = first.successor(beg->second);
         auto runEnd = first.successor(end->second);
         assert(runBeg->second == beg->second);
@@ -669,7 +690,7 @@ namespace lf_gbwt{
         if (pos >= size(node))
             return gbwt::invalid_edge();
         gbwt::comp_type next = bwtAt(node, pos);
-        return {next, LF(node, next, pos)};
+        return {next, LF(node, pos, next)};
     }
     
     SmallRecordArray::size_type SmallRecordArray::offsetTo(const SmallRecordArray::size_type node, const gbwt::comp_type to, SmallRecordArray::size_type i) const {
@@ -718,6 +739,7 @@ namespace lf_gbwt{
 
     SmallRecordArray::size_type SmallRecordArray::LF(const SmallRecordArray::size_type node, const SmallRecordArray::size_type i, const gbwt::comp_type to) const {
         assert(node < records);
+        //std::cout << "In SmallRecordArray::LF(node: " << node ", 
         size_type nodeLength = size(node);
         bool isEmpty;
         size_type nonEmptyIndex;
@@ -1115,6 +1137,8 @@ namespace lf_gbwt{
                 }
                 assert(recordNum - nonemptyRecordNum == emptyRecordsAssist.size());
                 assert(this->effective() < (size_type(1) << size_type(32)));
+                tempSmallRecords.records = recordNum;
+                tempSmallRecords.effective = this->effective();
 
                 //build all structures using assist vectors
                 auto buildSD = [] (sdsl::sd_vector<>& toBuild, const std::vector<size_type>& data, const size_type size, const size_type setBits) {
@@ -1216,16 +1240,20 @@ namespace lf_gbwt{
 
     std::pair<gbwt::size_type, gbwt::size_type> GBWT::runs() const {
         std::pair<size_type, size_type> result(0,0);
+        std::cout << "In GBWT::runs()" << std::endl;
         for (const CompressedRecord& rec: this->largeRecords) {
+            std::cout << "Outputting Large record" << std::endl;
             std::pair<size_type, size_type> temp = rec.runs();
             result.first  += temp.first;
             result.second += temp.second;
         }
         for (size_type i = 0; i < isSmall.ones(); ++i) {
+            std::cout << "Outputting small record" << std::endl;
             std::pair<size_type, size_type> temp = this->smallRecords.runs(i);
             result.first += temp.first;
             result.second += temp.second;
         }
+        std::cout << "Leaving GBWT::runs()" << std::endl;
         return result;
     }
 
