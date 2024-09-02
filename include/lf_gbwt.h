@@ -312,7 +312,7 @@ namespace lf_gbwt{
             gbwt::comp_type toComp(gbwt::node_type node) const { return (node == 0 ? node : node - this->header.offset); }
             gbwt::node_type toNode(gbwt::comp_type comp) const { return (comp == 0 ? comp : comp + this->header.offset); }
 
-            size_type nodeSize(gbwt::node_type node) const { return this->record(node).size(); }
+            size_type nodeSize(gbwt::node_type node) const { auto ind = this->isSmallAndIndex(this->toComp(node)); return (ind->first)? smallRecords.size(ind->second) : this->largeRecords[ind].size(); }
             bool empty(gbwt::node_type node) const { return this->nodeSize(node) == 0; }
 
             //------------------------------------------------------------------------------
@@ -322,17 +322,25 @@ namespace lf_gbwt{
                identifiers are valid. This can be checked with contains().
             */
 
+            //returns pair first value is true if node is small, second value is index in smallRecords if small, otherwise index in largeRecords
+            std::pair<bool, gbwt::size_type> isSmallAndIndex(gbwt::comp_type comp) {
+                assert(comp < this->effective());
+                auto nextSmall = isSmall.successor(comp);
+                return (nextSmall->second == comp)? {true, nextSmall->first} : {false, comp - nextSmall->first};
+            }
 
             // On error: invalid_edge().
             gbwt::edge_type LF(gbwt::edge_type position) const
             {
-                gbwt::edge_type ans = this->record(position.first).LF(position.second);
+                auto ind = this->isSmallAndIndex(this->toComp(position.first));
+                gbwt::edge_type ans = (ind->first)? this->smallRecords.LF(ind->second, position.second) : this->largeRecords(ind->second).LF(position.second);
                 ans.first = this->toNode(ans.first);
                 return ans;
             }
             
             gbwt::edge_type LF(gbwt::edge_type position, gbwt::range_type& run, gbwt::size_type& run_id) const {
-                gbwt::edge_type next = this->record(position.first).LF(position.second, run, run_id);
+                auto ind = this->isSmallAndIndex(this->toComp(position.first));
+                gbwt::edge_type next = (ind->first)? this->smallRecords.LF(this->record(ind->second, position.second, run, run_id) : this->largeRecords[ind.second].LF(position.second, run, run_id);
                 next.first = this->toNode(next.first);
                 return next;
             }
@@ -374,13 +382,11 @@ namespace lf_gbwt{
                Internal interface. Do not use.
             */
 
-            std::pair<bool, gbwt::size_type> compToSmallLargeIndex(gbwt::comp_type comp) const {}
-
-            const CompressedRecord& record(gbwt::node_type node) const { 
+            /*const CompressedRecord& record(gbwt::node_type node) const { 
                 if (!this->contains(node))
                     throw std::invalid_argument("node given to lf_gbwt.record invalid!");
                 return this->bwt[this->toComp(node)]; 
-            }
+            }*/
 
             bool verify(const gbwt::GBWT& g) {
                 bool equal = (this->size() == g.size()) && (this->sequences() == g.sequences()) && (this->sigma() == g.sigma()) && (this->effective() == g.effective()) && (this->runs() == g.runs()) && (this->bidirectional() == g.bidirectional());
@@ -395,13 +401,19 @@ namespace lf_gbwt{
                 bool equal = true;
                 #pragma omp parallel for schedule(dynamic, 1)
                 for (gbwt::comp_type i = 0; i < this->effective(); ++i) {
-                    gbwt::node_type node = this->toNode(i);
-                    bool nodeEqual = node == g.toNode(i);
+                    auto ind = this->isSmallAndIndex(i);
+                    bool nodeEqual = this->toNode(i) == g.toNode(i);
                     gbwt::CompressedRecord rec = g.record(node);
-                    const CompressedRecord& lfrec = this->record(node);
-                    nodeEqual = nodeEqual && rec.size() == lfrec.size();
-                    for (gbwt::size_type j = 0; nodeEqual && j < lfrec.size(); ++j)
-                        nodeEqual = nodeEqual && rec[j] == this->toNode(lfrec[j]);
+                    nodeEqual = nodeEqual && this->nodeSize(this->toNode(i)) == rec.size();
+                    if (ind->first) {
+                        for (gbwt::size_type j = 0; nodeEqual && j < this->nodeSize(this->toNode(i)); ++j)
+                            nodeEqual = nodeEqual && rec[j] == this->toNode(this->smallRecords.bwtAt(ind->second, j));
+                    }
+                    else {
+                        const CompressedRecord &lfrec = this->largeRecords[ind->second];
+                        for (gbwt::size_type j = 0; nodeEqual && j < rec.size(); ++j)
+                            nodeEqual = nodeEqual && rec[j] == this->toNode(lfrec[j]);
+                    }
                     #pragma omp critical 
                     {
                        equal = equal && nodeEqual;
@@ -791,61 +803,123 @@ namespace lf_gbwt{
                 return x;
             return gbwt::Node::reverse(this->toNode(x));
         };
-        const CompressedRecord & rev = this->record(revFrom);
-        if (i >= rev.size())
+        auto ind = this->isSmallAndIndex(this->toComp(revFrom));
+        if (i >= this->nodeSize(revFrom))
             return gbwt::invalid_node();
-        size_type predoutrank = rev.firstByAlphabet.select_iter(
-                rev.firstByAlphComp.predecessor(i)->first+1
-                )->second/rev.size();
 
-        //check if before predoutrank is its reverse
-        auto alphIter = rev.alphabet.select_iter(predoutrank+1);
-        if (predoutrank > 0){
-            auto prevAlphIter = --alphIter;
-            ++alphIter;
-            if (this->toNode(prevAlphIter->second) == revNode(alphIter->second)){
-                size_type beforePrevAlph = rev.firstByAlphComp.select_iter(1+
-                        rev.firstByAlphabet.successor((predoutrank-1)*rev.size())->first
-                        )->second;
-                size_type prevAlphSize = rev.firstByAlphComp.select_iter(1+
-                        rev.firstByAlphabet.successor((predoutrank)*rev.size())->first
-                        )->second;
-                size_type AlphSize = rev.firstByAlphComp.select_iter(1+
-                        rev.firstByAlphabet.successor((predoutrank+1)*rev.size())->first
-                        )->second;
-                AlphSize -= prevAlphSize;
-                prevAlphSize -= beforePrevAlph;
+        if (ind->first) {
+            size_type prefixLength = prefixSum.select_iter(ind->second + 1)->second;
+            size_type predoutrank = (this->smallRecords.firstByAlphabet.select_iter(
+                    this->smallRecords.firstByAlphComp.predecessor(prefixLength + i)->first + 1
+                    )->second - (prefixLength*this->smallRecords.maxOutdegree))/this->smallRecords.size(ind->second);
 
-                if (i < beforePrevAlph + AlphSize)
-                    return revNode(alphIter->second);
-                return this->toNode(alphIter->second);
+            //check if before predoutrank is its reverse
+            auto alplhIter = this->smallRecords.alphabet.select_iter(
+                    this->smallRecords.successor(ind->second * this->effective())->first + 1 + predoutrank
+                    );
+            if (predoutrank > 0) {
+                auto prevAlphIter = alphIter;
+                --prevAlphIter;
+                if (this->toNode(prevAlphIter->second - ind->second * this->effective()) == revNode(alphIter->second - ind->second * this->effective())) {
+                    size_type beforePrevAlph = this->smallRecords.firstByAlphComp.select_iter(1+
+                            this->smallRecords.firstByAlphabet.successor((predoutrank-1)*this->smallRecords.size(ind->second) + prefixLength*this->smallRecords.maxOutdegree)
+                            )->second;
+                    size_type prevAlphSize   = this->smallRecords.firstByAlphComp.select_iter(1+
+                            this->smallRecords.firstByAlphabet.successor((predoutrank)  *this->smallRecords.size(ind->second) + prefixLength*this->smallRecords.maxOutdegree)
+                            )->second;
+                    size_type AlphSize       = this->smallRecords.firstByAlphComp.select_iter(1+
+                            this->smallRecords.firstByAlphabet.successor((predoutrank+1)*this->smallRecords.size(ind->second) + prefixLength*this->smallRecords.maxOutdegree)
+                            )->second;
+                    AlphSize -= prevAlphSize;
+                    prevAlphSize -= beforePrevAlph;
+                    beforePrevAlph -= prefixLength;
+                    if (i < beforePrevAlph + AlphSize)
+                        return revNode(alphIter->second - ind->second*this->effective());
+                    return this->toNode(alphIter->second - ind->second*this->effective());
+                }
             }
-        }
+            
+            //check if after predoutrank is its reverse
+            auto afterAlphIter = alphIter;
+            ++afterAlphIter;
+            if (afterAlphIter/this->effective() == ind->second) {
+                if (this->toNode(afterAlphIter->second - ind->second * this->effective()) == revNode(alphIter->second - ind->second * this->effective())) {
+                    size_type beforeAlph    = this->smallRecords.firstByAlphComp.select_iter(1+
+                            this->smallRecords.firstByAlphabet.successor((predoutrank)  *this->smallRecords.size(ind->second) + prefixLength*this->smallRecords.maxOutdegree)
+                            )->second;
+                    size_type AlphSize      = this->smallRecords.firstByAlphComp.select_iter(1+
+                            this->smallRecords.firstByAlphabet.successor((predoutrank+1)*this->smallRecords.size(ind->second) + prefixLength*this->smallRecords.maxOutdegree)
+                            )->second;
+                    size_type AfterAlphSize = this->smallRecords.firstByAlphComp.select_iter(1+
+                            this->smallRecords.firstByAlphabet.successor((predoutrank+2)*this->smallRecords.size(ind->second) + prefixLength*this->smallRecords.maxOutdegree)
+                            )->second;
+                    AfterAlphSize -= AlphSize;
+                    AlphSize -= beforeAlph;
+                    beforeAlph -= prefixLength;
+                    if (i < beforeAlph + AfterAlphSize)
+                        return revNode(afterAlphIter->second - ind->second*this->effective());
+                    return this->toNode(afterAlphIter->second - ind->second*this->effective());
 
-        //check if after predoutrank is its reverse 
-        if (predoutrank < rev.outgoing.size()-1){
-            auto afterAlphIter = ++alphIter;
-            --alphIter;
-            if (this->toNode(afterAlphIter->second) == revNode(alphIter->second)){
-                size_type beforeAlph = rev.firstByAlphComp.select_iter(1+
-                        rev.firstByAlphabet.successor((predoutrank)*rev.size())->first
-                        )->second;
-                size_type AlphSize = rev.firstByAlphComp.select_iter(1+
-                        rev.firstByAlphabet.successor((predoutrank+1)*rev.size())->first
-                        )->second;
-                size_type AfterAlphSize = rev.firstByAlphComp.select_iter(1+
-                        rev.firstByAlphabet.successor((predoutrank+2)*rev.size())->first
-                        )->second;
-                AfterAlphSize -= AlphSize;
-                AlphSize -= beforeAlph;
-
-                if (i < beforeAlph + AfterAlphSize)
-                    return revNode(afterAlphIter->second);
-                return this->toNode(afterAlphIter->second);
+                }
             }
-        }
 
-        return revNode(alphIter->second);
+            return revNode(alphIter->second - ind->second*this->effective());
+        }
+        else {
+            const CompressedRecord & rev = this->largeRecords[ind->second];
+            size_type predoutrank = rev.firstByAlphabet.select_iter(
+                    rev.firstByAlphComp.predecessor(i)->first+1
+                    )->second/rev.size();
+
+            //check if before predoutrank is its reverse
+            auto alphIter = rev.alphabet.select_iter(predoutrank+1);
+            if (predoutrank > 0){
+                auto prevAlphIter = --alphIter;
+                ++alphIter;
+                if (this->toNode(prevAlphIter->second) == revNode(alphIter->second)){
+                    size_type beforePrevAlph = rev.firstByAlphComp.select_iter(1+
+                            rev.firstByAlphabet.successor((predoutrank-1)*rev.size())->first
+                            )->second;
+                    size_type prevAlphSize = rev.firstByAlphComp.select_iter(1+
+                            rev.firstByAlphabet.successor((predoutrank)*rev.size())->first
+                            )->second;
+                    size_type AlphSize = rev.firstByAlphComp.select_iter(1+
+                            rev.firstByAlphabet.successor((predoutrank+1)*rev.size())->first
+                            )->second;
+                    AlphSize -= prevAlphSize;
+                    prevAlphSize -= beforePrevAlph;
+
+                    if (i < beforePrevAlph + AlphSize)
+                        return revNode(alphIter->second);
+                    return this->toNode(alphIter->second);
+                }
+            }
+
+            //check if after predoutrank is its reverse 
+            if (predoutrank < rev.outgoing.size()-1){
+                auto afterAlphIter = ++alphIter;
+                --alphIter;
+                if (this->toNode(afterAlphIter->second) == revNode(alphIter->second)){
+                    size_type beforeAlph = rev.firstByAlphComp.select_iter(1+
+                            rev.firstByAlphabet.successor((predoutrank)*rev.size())->first
+                            )->second;
+                    size_type AlphSize = rev.firstByAlphComp.select_iter(1+
+                            rev.firstByAlphabet.successor((predoutrank+1)*rev.size())->first
+                            )->second;
+                    size_type AfterAlphSize = rev.firstByAlphComp.select_iter(1+
+                            rev.firstByAlphabet.successor((predoutrank+2)*rev.size())->first
+                            )->second;
+                    AfterAlphSize -= AlphSize;
+                    AlphSize -= beforeAlph;
+
+                    if (i < beforeAlph + AfterAlphSize)
+                        return revNode(afterAlphIter->second);
+                    return this->toNode(afterAlphIter->second);
+                }
+            }
+
+            return revNode(alphIter->second);
+        }
     }
         
 
@@ -984,7 +1058,7 @@ namespace lf_gbwt{
                     }
                     else {
                         std::vector<std::vector<std::pair<size_type,size_type>>> localFirstByAlphabetAssist;
-                        firstByAlphabetAssist.resize(tempSmallRecords.maxOutdegree);
+                        localFirstByAlphabetAssist.resize(tempSmallRecords.maxOutdegree);
 
                         size_type recLength = rec.size(), lengthPrefixSum = prevLengthPrefixSum;
                         outdegreePrefixSumAssist.push_back(prevOutdegreePrefixSum);
@@ -1007,7 +1081,7 @@ namespace lf_gbwt{
                         }
 
                         size_type currInd = lengthPrefixSum;
-                        for (const auto& alphArr : firstByAlphabetAssist) {
+                        for (const auto& alphArr : localFirstByAlphabetAssist) {
                             for (const auto& a : alphArr) {
                                 firstByAlphabetAssist.push_back(a.first);
                                 firstByAlphCompAssist.push_back(currInd);
@@ -1093,7 +1167,9 @@ namespace lf_gbwt{
 
         written_bytes += sdsl::serialize(this->header, out, child, "header");
         written_bytes += sdsl::serialize(this->tags, out, child, "tags");
-        written_bytes += sdsl::serialize(this->bwt, out, child, "bwt");
+        written_bytes += sdsl::serialize(this->isSmall, out, child, "isSmall");
+        written_bytes += sdsl::serialize(this->smallRecords, out, child, "smallRecords");
+        written_bytes += sdsl::serialize(this->largeRecords, out, child, "largeRecords");
         if(this->hasMetadata())
         {
             written_bytes += sdsl::serialize(this->metadata, out, child, "metadata");
@@ -1106,7 +1182,9 @@ namespace lf_gbwt{
     void GBWT::load(std::istream& in){
         sdsl::load(this->header, in);
         sdsl::load(this->tags, in);
-        sdsl::load(this->bwt, in);
+        sdsl::load(this->isSmall, in);
+        sdsl::load(this->smallRecords, in);
+        sdsl::load(this->largeRecords, in);
         if(this->hasMetadata())
         {
             sdsl::load(this->metadata, in);
@@ -1115,9 +1193,14 @@ namespace lf_gbwt{
 
     std::pair<gbwt::size_type, gbwt::size_type> GBWT::runs() const {
         std::pair<size_type, size_type> result(0,0);
-        for (size_type i = 0; i < this->effective(); ++i){
-            std::pair<size_type, size_type> temp = this->record(this->toNode(i)).runs();
-            result.first  += temp.first; 
+        for (const CompressedRecord& rec: this->largeRecords) {
+            std::pair<size_type, size_type> temp = rec.runs();
+            result.first  += temp.first;
+            result.second += temp.second;
+        }
+        for (size_type i = 0; i < isSmall.ones(); ++i) {
+            std::pair<size_type, size_type> temp = this->smallRecords.runs(i);
+            result.first += temp.first;
             result.second += temp.second;
         }
         return result;
@@ -1146,7 +1229,9 @@ namespace lf_gbwt{
         if (pred == gbwt::invalid_node()) { return gbwt::invalid_edge(); }
 
         //determine the offset 
-        size_type offset = this->record(pred).offsetTo(this->toComp(from), i);
+        auto ind = this->isSmallAndIndex(pred);
+        size_type offset = (ind->first)? this->smallRecords.offsetTo(ind.second, this->toComp(from), i)
+            : this->largeRecords[ind.second].offsetTo(this->toComp(from), i);
         if (offset == gbwt::invalid_offset()) { return {pred, offset}; return gbwt::invalid_edge(); }
 
         return { pred, offset};
