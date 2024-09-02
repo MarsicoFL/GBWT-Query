@@ -218,31 +218,57 @@ std::pair<std::vector<gbwt::size_type>,std::vector<gbwt::size_type>>
 virtualInsertionWithSuffLFGBWT(const lf_gbwt::GBWT & lfg, const gbwt::FastLocate& r, const FastLCP & l, const gbwt::vector_type& Qs) {
     auto LFWithSuff = 
         [&lfg, &r, &l] (const gbwt::size_type prevPos, const gbwt::size_type prevSuff, const gbwt::node_type from, const gbwt::node_type to) -> std::pair<gbwt::size_type,gbwt::size_type> {
+            auto ind = lfg.isSmallAndIndex(lfg.toComp(from));
             gbwt::comp_type compTo= lfg.toComp(to);
-            const lf_gbwt::CompressedRecord& rec = lfg.record(from);
+            if (ind.first) {
+                gbwt::size_type outrank = lfg.smallRecords.edgeTo(ind.second, compTo),
+                    newPos = lfg.smallRecords.LF(ind.second, prevPos, compTo);
+                if (outrank >= lfg.smallRecords.outdegree(ind.second))
+                    return {0, r.locateFirst(to)};
 
-            gbwt::size_type outrank = rec.edgeTo(compTo),
-                newPos = rec.LF(prevPos, compTo);
-            if (outrank >= rec.outdegree())
-                return {0, r.locateFirst(to)};
+                if (prevPos < lfg.smallRecords.size(ind.second) && lfg.smallRecords.bwtAt(ind.second, prevPos) == compTo)
+                    return {newPos, prevSuff - 1};
 
-            if (prevPos < rec.size() && rec[prevPos] == compTo)
-                return {newPos, prevSuff - 1};
-
-            auto nextRun = rec.firstByAlphabet.successor(outrank*rec.size() + prevPos);
-            if (nextRun->second < (outrank+1)*rec.size()){
-                //successor run exists
-                gbwt::size_type run_id = rec.logicalRunId(nextRun->second-outrank*rec.size());
-                return {newPos, l.getSample(from, run_id) - 1};
+                auto nextRun = lfg.smallRecords.firstByAlphabet.successor(ind.second*lfg.smallRecords.effective + outrank* lfg.smallRecords.size(ind.second) + prevPos);
+                if (nextRun->second - ind.second*lfg.smallRecords.effective < (outrank+1)*lfg.smallRecords.size(ind.second)) {
+                    //successor run exists
+                    gbwt::size_type run_id = lfg.smallRecords.logicalRunId(ind.second, nextRun->second - ind.second*lfg.smallRecords.effective - outrank*lfg.smallRecords.size(ind.second));
+                    return {newPos, l.getSample(from, run_id) - 1};
+                }
+                else if (newPos < lfg.nodeSize(to)) {
+                    //predecessor run exists
+                    auto prevRun = --nextRun;
+                    gbwt::size_type run_id = lfg.smallRecords.logicalRunId(ind.second, prevRun->second - ind.second*lfg.smallRecords.effective - outrank*lfg.smallRecords.size(ind.second));
+                    return {newPos, r.locateNext(l.getSampleBot(from, run_id) - 1)};
+                }
+                return {newPos, gbwt::invalid_offset()};
             }
-            else if (newPos < lfg.record(to).size()){
-                //predecessor run exists
-                auto prevRun = --nextRun;
-                gbwt::size_type run_id = rec.logicalRunId(prevRun->second - outrank*rec.size());
-                return {newPos, r.locateNext(l.getSampleBot(from, run_id) - 1)};
+            else {
+                const lf_gbwt::CompressedRecord& rec = lfg.largeRecords[ind.second];
+
+                gbwt::size_type outrank = rec.edgeTo(compTo),
+                    newPos = rec.LF(prevPos, compTo);
+                if (outrank >= rec.outdegree())
+                    return {0, r.locateFirst(to)};
+
+                if (prevPos < rec.size() && rec[prevPos] == compTo)
+                    return {newPos, prevSuff - 1};
+
+                auto nextRun = rec.firstByAlphabet.successor(outrank*rec.size() + prevPos);
+                if (nextRun->second < (outrank+1)*rec.size()){
+                    //successor run exists
+                    gbwt::size_type run_id = rec.logicalRunId(nextRun->second-outrank*rec.size());
+                    return {newPos, l.getSample(from, run_id) - 1};
+                }
+                else if (newPos < lfg.nodeSize(to)){
+                    //predecessor run exists
+                    auto prevRun = --nextRun;
+                    gbwt::size_type run_id = rec.logicalRunId(prevRun->second - outrank*rec.size());
+                    return {newPos, r.locateNext(l.getSampleBot(from, run_id) - 1)};
+                }
+                //predecessor run exists but newPos == lfg.record(to).size
+                return {newPos, gbwt::invalid_offset()};
             }
-            //predecessor run exists but newPos == lfg.record(to).size
-            return {newPos, gbwt::invalid_offset()};
         };
     std::vector<gbwt::size_type> a(Qs.size());
     std::vector<gbwt::size_type> s(Qs.size());
@@ -644,40 +670,59 @@ AddLongMatchesLFGBWT(const lf_gbwt::GBWT& lfg, const gbwt::FastLocate& r, const 
     assert(topSuff < r.pack(lfg.sequences(), 0) && botSuff < r.pack(lfg.sequences(), 0));
 
     gbwt::comp_type compTo = lfg.toComp(Qs[currQsInd-1]);
-    const lf_gbwt::CompressedRecord& rec = lfg.record(Qs[currQsInd]);
+    auto ind = lfg.isSmallAndIndex(Qs[currQsInd]);
+    //const lf_gbwt::CompressedRecord& rec = lfg.record(Qs[currQsInd]);
 
     gbwt::range_type newBlock = gbwt::Range::empty_range();
-    gbwt::size_type outrank = rec.edgeTo(compTo);
+    gbwt::size_type outrank = (ind.first)? lfg.smallRecords.edgeTo(ind.second, compTo) : lfg.largeRecords[ind.second].edgeTo(compTo);
     if (outrank != gbwt::invalid_offset()) {
-        newBlock.first  = rec.LF(block.first, compTo);
-        newBlock.second = rec.LF(block.second + 1, compTo) - 1;
+        newBlock.first  = (ind.first)? lfg.smallRecords.LF(ind.second, block.first, compTo) : lfg.largeRecords[ind.second].LF(block.first, compTo);
+        newBlock.second = ((ind.first)? lfg.smallRecords.LF(ind.second, block.second + 1, compTo) : lfg.largeRecords[ind.second].LF(block.second + 1, compTo)) - 1;
     }
     if (gbwt::Range::empty(newBlock)) {
         AddLongMatchesWholeBlock(r, l, inBlock, currQsInd, Qs, block, topSuff, matches);
         return {gbwt::Range::empty_range(), gbwt::invalid_offset(), gbwt::invalid_offset()};
     }
 
-    sdsl::sd_vector<>::one_iterator start = rec.first.predecessor(block.first), end = rec.first.successor(block.second + 1), next = start;
+    gbwt::size_type prefixSum = (ind.first)? lfg.smallRecords.prefixSum.select_iter(ind.second + 1)->second : 0;
+    sdsl::sd_vector<>::one_iterator start = ((ind.first)? lfg.smallRecords.first.predecessor(prefixSum + block.first) : lfg.largeRecords[ind.second].first.predecessor(block.first)), 
+        end = ((ind.first)? lfg.smallRecords.first.successor(prefixSum + block.second + 1) : lfg.largeRecords[ind.second].first.successor(block.second + 1)), next = start;
     for (; start != end; ++start) {
         ++next; 
-        if (rec.alphabetByRun[start->first] == outrank) { continue; }
-        gbwt::range_type runBlock = {std::max(block.first, start->second), std::min(block.second, next->second - 1)};
-        gbwt::size_type firstSuff = (block.first == runBlock.first)? topSuff : l.getSample(Qs[currQsInd], rec.logicalRunId(start->second));
+        gbwt::comp_type runVal = (ind.first)? lfg.smallRecords.alphabetByRun[start->first] : lfg.largeRecords[ind.second].alphabetByRun[start->first];
+        if (runVal == outrank) { continue; }
+        gbwt::range_type runBlock = {std::max(block.first, start->second - prefixSum), std::min(block.second, next->second - prefixSum - 1)};
+        gbwt::size_type firstSuff = (block.first == runBlock.first)? topSuff : 
+            l.getSample(Qs[currQsInd], 
+                    ((ind.first)? lfg.smallRecords.logicalRunId(ind.second, start->second): lfg.largeRecords[ind.second].logicalRunId(start->second))
+                    );
         AddLongMatchesWholeBlock(r, l, inBlock, currQsInd, Qs, runBlock, firstSuff, matches);
     }
 
     gbwt::size_type newTopSuff, newBotSuff;
-    if (rec.compAlphabetAt(block.first) == outrank) { newTopSuff = topSuff - 1; }
+    gbwt::comp_type bwtValTop = (ind.first)? lfg.smallRecords.compAlphabetAt(ind.second, block.first) : lfg.largeRecords[ind.second].compAlphabetAt(block.first);
+    gbwt::comp_type bwtValBot = (ind.first)? lfg.smallRecords.compAlphabetAt(ind.second, block.second): lfg.largeRecords[ind.second].compAlphabetAt(block.second);
+    if (bwtValTop == outrank) { newTopSuff = topSuff - 1; }
     else { 
-        gbwt::size_type nextOutrankRunStart = rec.firstByAlphabet.successor(outrank*rec.size() + block.first )->second - outrank*rec.size();
+        gbwt::size_type nextOutrankRunStart = (ind.first)
+            ? lfg.smallRecords.firstByAlphabet.successor(prefixSum*lfg.smallRecords.maxOutdegree + outrank*lfg.smallRecords.size(ind.second) + block.first)->second - prefixSum*lfg.smallRecords.maxOutdegree - outrank*lfg.smallRecords.size(ind.second)
+            : lfg.largeRecords[ind.second].firstByAlphabet.successor(outrank*lfg.largeRecords[ind.second].size() + block.first )->second - outrank*lfg.largeRecords[ind.second].size();
         assert(nextOutrankRunStart <= block.second);
-        newTopSuff = l.getSample(Qs[currQsInd], rec.logicalRunId(nextOutrankRunStart)) - 1;
+        newTopSuff = l.getSample(Qs[currQsInd], 
+                ((ind.first)? lfg.smallRecords.logicalRunId(ind.second, nextOutrankRunStart): lfg.largeRecords[ind.second].logicalRunId(nextOutrankRunStart))
+                ) - 1;
     }
-    if (rec.compAlphabetAt(block.second) == outrank) {newBotSuff = botSuff - 1; }
+    if (bwtValBot == outrank) {newBotSuff = botSuff - 1; }
     else {
-        gbwt::size_type lastOutrankRunStart = rec.firstByAlphabet.predecessor(outrank*rec.size() + block.second)->second - outrank*rec.size();
-        gbwt::size_type lastOutrankRunEnd = rec.first.successor(lastOutrankRunStart + 1)->second - 1;
-        newBotSuff = l.getSampleBot(Qs[currQsInd], rec.logicalRunId(lastOutrankRunEnd)) - 1;
+        gbwt::size_type lastOutrankRunStart = (ind.first)
+            ? lfg.smallRecords.firstByAlphabet.successor(prefixSum*lfg.smallRecords.maxOutdegree + outrank*lfg.smallRecords.size(ind.second) + block.second)->second - prefixSum*lfg.smallRecords.maxOutdegree - outrank*lfg.smallRecords.size(ind.second)
+            : lfg.largeRecords[ind.second].firstByAlphabet.predecessor(outrank*lfg.largeRecords[ind.second].size() + block.second)->second - outrank*lfg.largeRecords[ind.second].size();
+        gbwt::size_type lastOutrankRunEnd = (ind.first)
+            ? lfg.smallRecords.first.successor(prefixSum + lastOutrankRunStart + 1)->second - 1
+            : lfg.largeRecords[ind.second].first.successor(lastOutrankRunStart + 1)->second - 1;
+        newBotSuff = l.getSampleBot(Qs[currQsInd], 
+                ((ind.first)? lfg.smallRecords.logicalRunId(ind.second, lastOutrankRunEnd) : lfg.largeRecords[ind.second].logicalRunId(lastOutrankRunEnd))
+                ) - 1;
     }
 
     return {newBlock, newTopSuff, newBotSuff};

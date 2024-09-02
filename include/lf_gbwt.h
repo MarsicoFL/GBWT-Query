@@ -1069,7 +1069,7 @@ namespace lf_gbwt{
                 for (size_type i = 0; i < this->effective(); ++i) {
                     const CompressedRecord& rec = bwt[i];
                     if (rec.outdegree() >= tempSmallRecords.maxOutdegree) {
-                        largeRecords.push_back(rec);
+                        tempLargeRecords.push_back(rec);
                         continue;
                     }
                     if (rec.outdegree() == 0) {
