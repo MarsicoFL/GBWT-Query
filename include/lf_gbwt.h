@@ -158,7 +158,7 @@ namespace lf_gbwt{
     //The GBWT is split into two subsets, one of small records and one of large records
     //small records are those with outdegree <  maxOutDegree
     struct SmallRecordArray{
-        type_def gbwt::size_type size_type;
+        typedef gbwt::size_type size_type;
 
         size_type maxOutdegree = 0;
         size_type records = 0;
@@ -220,7 +220,7 @@ namespace lf_gbwt{
 
         gbwt::edge_type LF(const size_type node, const size_type pos) const;
 
-        size_type offsetTo(const size_type node, const gbwt::comp_type to, const size_type i) const;
+        size_type offsetTo(const size_type node, const gbwt::comp_type to, size_type i) const;
 
         gbwt::edge_type LF(const size_type node, const size_type i, gbwt::range_type& run, size_type& run_id) const;
 
@@ -230,19 +230,19 @@ namespace lf_gbwt{
 
         gbwt::range_type LF(const size_type node, const gbwt::range_type range, const gbwt::comp_type to) const;
 
-        size_type compAlphabetAt(const size_type node, const size_type i) const {}; 
+        size_type compAlphabetAt(const size_type node, const size_type i) const;
 
-        gbwt::comp_type bwtAt(const size_type node, const size_type i) const {};
+        gbwt::comp_type bwtAt(const size_type node, const size_type i) const;
 
-        bool hasEdge(const size_type node, const gbwt::comp_type to) const {};
+        bool hasEdge(const size_type node, const gbwt::comp_type to) const;
 
         gbwt::rank_type edgeTo(const gbwt::size_type node, const gbwt::comp_type to) const;
 
-        gbwt::comp_type successor(size_type node, gbwt::rank_type outrank) const {};
+        gbwt::comp_type successor(size_type node, gbwt::rank_type outrank) const;
 
-        size_type offset(size_type node, gbwt::rank_type outrank) const {};
+        size_type offset(size_type node, gbwt::rank_type outrank) const;
 
-        size_type logicalRunId(const size_type node, const size_type i) const {};
+        size_type logicalRunId(const size_type node, const size_type i) const;
 
     };
 
@@ -312,7 +312,7 @@ namespace lf_gbwt{
             gbwt::comp_type toComp(gbwt::node_type node) const { return (node == 0 ? node : node - this->header.offset); }
             gbwt::node_type toNode(gbwt::comp_type comp) const { return (comp == 0 ? comp : comp + this->header.offset); }
 
-            size_type nodeSize(gbwt::node_type node) const { auto ind = this->isSmallAndIndex(this->toComp(node)); return (ind->first)? smallRecords.size(ind->second) : this->largeRecords[ind].size(); }
+            size_type nodeSize(gbwt::node_type node) const { auto ind = this->isSmallAndIndex(this->toComp(node)); return (ind.first)? smallRecords.size(ind.second) : this->largeRecords[ind.second].size(); }
             bool empty(gbwt::node_type node) const { return this->nodeSize(node) == 0; }
 
             //------------------------------------------------------------------------------
@@ -323,24 +323,24 @@ namespace lf_gbwt{
             */
 
             //returns pair first value is true if node is small, second value is index in smallRecords if small, otherwise index in largeRecords
-            std::pair<bool, gbwt::size_type> isSmallAndIndex(gbwt::comp_type comp) {
+            std::pair<bool, gbwt::size_type> isSmallAndIndex(gbwt::comp_type comp) const {
                 assert(comp < this->effective());
                 auto nextSmall = isSmall.successor(comp);
-                return (nextSmall->second == comp)? {true, nextSmall->first} : {false, comp - nextSmall->first};
+                return (nextSmall->second == comp)? std::pair<bool,gbwt::size_type>{true, nextSmall->first} : std::pair<bool,gbwt::size_type>{false, comp - nextSmall->first};
             }
 
             // On error: invalid_edge().
             gbwt::edge_type LF(gbwt::edge_type position) const
             {
                 auto ind = this->isSmallAndIndex(this->toComp(position.first));
-                gbwt::edge_type ans = (ind->first)? this->smallRecords.LF(ind->second, position.second) : this->largeRecords(ind->second).LF(position.second);
+                gbwt::edge_type ans = (ind.first)? this->smallRecords.LF(ind.second, position.second) : this->largeRecords[ind.second].LF(position.second);
                 ans.first = this->toNode(ans.first);
                 return ans;
             }
             
             gbwt::edge_type LF(gbwt::edge_type position, gbwt::range_type& run, gbwt::size_type& run_id) const {
                 auto ind = this->isSmallAndIndex(this->toComp(position.first));
-                gbwt::edge_type next = (ind->first)? this->smallRecords.LF(this->record(ind->second, position.second, run, run_id) : this->largeRecords[ind.second].LF(position.second, run, run_id);
+                gbwt::edge_type next = (ind.first)? this->smallRecords.LF(ind.second, position.second, run, run_id) : this->largeRecords[ind.second].LF(position.second, run, run_id);
                 next.first = this->toNode(next.first);
                 return next;
             }
@@ -403,14 +403,14 @@ namespace lf_gbwt{
                 for (gbwt::comp_type i = 0; i < this->effective(); ++i) {
                     auto ind = this->isSmallAndIndex(i);
                     bool nodeEqual = this->toNode(i) == g.toNode(i);
-                    gbwt::CompressedRecord rec = g.record(node);
+                    gbwt::CompressedRecord rec = g.record(g.toNode(i));
                     nodeEqual = nodeEqual && this->nodeSize(this->toNode(i)) == rec.size();
-                    if (ind->first) {
+                    if (ind.first) {
                         for (gbwt::size_type j = 0; nodeEqual && j < this->nodeSize(this->toNode(i)); ++j)
-                            nodeEqual = nodeEqual && rec[j] == this->toNode(this->smallRecords.bwtAt(ind->second, j));
+                            nodeEqual = nodeEqual && rec[j] == this->toNode(this->smallRecords.bwtAt(ind.second, j));
                     }
                     else {
-                        const CompressedRecord &lfrec = this->largeRecords[ind->second];
+                        const CompressedRecord &lfrec = this->largeRecords[ind.second];
                         for (gbwt::size_type j = 0; nodeEqual && j < rec.size(); ++j)
                             nodeEqual = nodeEqual && rec[j] == this->toNode(lfrec[j]);
                     }
@@ -561,7 +561,7 @@ namespace lf_gbwt{
 
     //SmallRecordArray member functions
 
-    SmallRecordArray::size_type SmallRecordArray::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) {
+    SmallRecordArray::size_type SmallRecordArray::serialize(std::ostream& out, sdsl::structure_tree_node* v, std::string name) const {
         sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
         size_type written_bytes = 0;
 
@@ -599,7 +599,7 @@ namespace lf_gbwt{
         assert(node < records);
         auto p = emptyAndNonEmptyIndex(node);
         if (p.first) return 0;
-        auto it = prefixSum.select(p.second + 1);
+        auto it = prefixSum.select_iter(p.second + 1);
         size_type beg = (it++)->second;
         return it->second - beg;
     }
@@ -609,17 +609,17 @@ namespace lf_gbwt{
         return emptyRecords[node];
     }
 
-    std::pair<bool, SmallRecordArray::size_type> emptyAndNonEmptyIndex(const SmallRecordArray::size_type node) const {
+    std::pair<bool, SmallRecordArray::size_type> SmallRecordArray::emptyAndNonEmptyIndex(const SmallRecordArray::size_type node) const {
         assert(node < records);
         auto it = emptyRecords.successor(node);
         return {it->second == node, node - it->first};
     }
 
-    std::pair<SmallRecordArray::size_type, SmallRecordArray::size_type> runs(const SmallRecordArray::size_type) const {
+    std::pair<SmallRecordArray::size_type, SmallRecordArray::size_type> SmallRecordArray::runs(const SmallRecordArray::size_type node) const {
         assert (node < records);
         auto pos = emptyAndNonEmptyIndex(node);
         if (pos.first) return {0, 0};
-        auto end = prefixSum.select(p.second + 1);
+        auto end = prefixSum.select_iter(pos.second + 1);
         auto beg = end++; 
         auto runBeg = first.successor(beg->second);
         auto runEnd = first.successor(end->second);
@@ -638,7 +638,7 @@ namespace lf_gbwt{
         return {concRuns, concRuns - numENDMARKERruns + numENDMARKERS};
     }
 
-    SmallRecordArray::size_type outdegree(const SmallRecordArray::size_type node) const {
+    SmallRecordArray::size_type SmallRecordArray::outdegree(const SmallRecordArray::size_type node) const {
         assert(node < records);
         auto pos = emptyAndNonEmptyIndex(node);
         if (pos.first) return 0;
@@ -656,9 +656,9 @@ namespace lf_gbwt{
         return {next, LF(node, next, pos)};
     }
     
-    SmallRecordArray::size_type SmallRecordArray::offsetTo(const SmallRecordArray::size_type node, const gbwt::comp_type to, const SmallRecordArray::size_type i) const {
+    SmallRecordArray::size_type SmallRecordArray::offsetTo(const SmallRecordArray::size_type node, const gbwt::comp_type to, SmallRecordArray::size_type i) const {
         assert(node < records);
-        auto p = emptyAndNonemptyIndex(node);
+        auto p = emptyAndNonEmptyIndex(node);
         if (p.first) return gbwt::invalid_offset();
         size_type outrank = edgeTo(node, to);
         if (outrank == gbwt::invalid_offset()) return gbwt::invalid_offset();
@@ -689,9 +689,9 @@ namespace lf_gbwt{
             run_id = gbwt::invalid_offset();
             return gbwt::invalid_edge();
         }
-        size_type nonEmptyIndex = emptyAndNonemptyIndex(node)->second;
+        size_type nonEmptyIndex = emptyAndNonEmptyIndex(node).second;
         run_id = logicalRunId(node, i);
-        auto prefixBeg = prefixSum.select_iter(p.second + 1);
+        auto prefixBeg = prefixSum.select_iter(nonEmptyIndex + 1);
         auto it = first.predecessor(prefixBeg->second + i);
         run.first = it->second - prefixBeg->second;
         ++it;
@@ -705,7 +705,7 @@ namespace lf_gbwt{
         size_type nodeLength = size(node);
         bool isEmpty;
         size_type nonEmptyIndex;
-        std::tie(isEmpty, nonEmptyIndex) = emptyAndNoneEmptyIndex(node);
+        std::tie(isEmpty, nonEmptyIndex) = emptyAndNonEmptyIndex(node);
         //why > instead of >=?
         if (isEmpty || i > nodeLength || !hasEdge(node, to))
             return gbwt::invalid_offset();
@@ -717,7 +717,7 @@ namespace lf_gbwt{
         auto firstOutrankRun = firstByAlphabet.successor((lengthPrefixSum*maxOutdegree) + (outrank*nodeLength));
         auto nextRunComp = firstByAlphComp.select_iter(nextRun->first+1);
         auto firstOutrankComp = firstByAlphComp.select_iter(firstOutrankRun->first+1);
-        size_type numOutrank = nextRunComp->second - firstOutrankRunComp->second;
+        size_type numOutrank = nextRunComp->second - firstOutrankComp->second;
         if (bwtAt(node, i) == to) {
             size_type afteriInRun = this->first.successor(lengthPrefixSum + i)->second - lengthPrefixSum - i;
             numOutrank -= afteriInRun;
@@ -729,40 +729,39 @@ namespace lf_gbwt{
 
     SmallRecordArray::size_type SmallRecordArray::compAlphabetAt(const SmallRecordArray::size_type node, const SmallRecordArray::size_type i) const {
         assert (node < records);
-        auto p = emptyAndNonemptyIndex(node);
+        auto p = emptyAndNonEmptyIndex(node);
         if (p.first) return gbwt::invalid_offset();
-        if (i >= size(node)) return gbwt::invalid__offset();
-        size_type lengthPrefixSum = prefixSum.select_iter(p.second + 1);
+        if (i >= size(node)) return gbwt::invalid_offset();
+        size_type lengthPrefixSum = prefixSum.select_iter(p.second + 1)->second;
         size_type runInd = first.predecessor(lengthPrefixSum + i)->first;
         return alphabetByRun[runInd];
     }
 
-    SmallRecordArray::size_type bwtAt(const SmallRecordArray::size_type node, const SmallRecordArray::size_type i) const {
+    SmallRecordArray::size_type SmallRecordArray::bwtAt(const SmallRecordArray::size_type node, const SmallRecordArray::size_type i) const {
         assert (node < records);
-        auto p = emptyAndNonemptyIndex(node);
+        auto p = emptyAndNonEmptyIndex(node);
         if (p.first) return gbwt::invalid_offset();
-        if (i >= size(node)) return gbwt::invalid__offset();
+        if (i >= size(node)) return gbwt::invalid_offset();
         size_type outrank = compAlphabetAt(node, i);
         auto it = alphabet.select_iter(outrank + alphabet.successor(p.second*effective)->first + 1);
         return it->second - p.second*nonEmptyRecords();
     }
 
     bool SmallRecordArray::hasEdge(const SmallRecordArray::size_type node, const gbwt::comp_type to) const {
-        return edgeTo(to) != gbwt::invalid_offset();
+        return edgeTo(node, to) != gbwt::invalid_offset();
     }
 
     gbwt::rank_type SmallRecordArray::edgeTo(const gbwt::size_type node, const gbwt::comp_type to) const {
         assert(node < records);
-        auto p = emptyAndNonemptyIndex(node);
+        auto p = emptyAndNonEmptyIndex(node);
         if (p.first) return gbwt::invalid_offset();
-        size_type n = nonEmptyRecords();
         auto it = alphabet.successor(effective*p.second + to);
         return (it->second == effective*p.second + to)? it->first - alphabet.successor(effective*p.second)->first : gbwt::invalid_offset();
     }
 
     gbwt::comp_type SmallRecordArray::successor(const SmallRecordArray::size_type node, const gbwt::rank_type outrank) const {
         assert(node < records);
-        auto p = emptyAndNonemptyIndex(node);
+        auto p = emptyAndNonEmptyIndex(node);
         if (p.first) return gbwt::invalid_offset();
         auto it = alphabet.select_iter(alphabet.successor(effective*p.second)->first + outrank + 1);
         if (it->second >= effective*(p.second+1))
@@ -770,21 +769,21 @@ namespace lf_gbwt{
         return it->second - (effective*p.second);
     }
 
-    SmallRecordArray::size_type SmallRecordArray::logicalRunId(const SmallRecordArray::size_type node, const SmallRecordArray::size_type i) {
+    SmallRecordArray::size_type SmallRecordArray::logicalRunId(const SmallRecordArray::size_type node, const SmallRecordArray::size_type i) const {
         assert(node < records);
         size_type nodeLength = size(node);
         if (i >= nodeLength)
             return gbwt::invalid_offset();
-        size_type nonEmptyIndex = emptyAndNonemptyIndex(node)->second;
-        auto prefixBeg = prefixSum.select_iter(p.second + 1);
+        size_type nonEmptyIndex = emptyAndNonEmptyIndex(node).second;
+        auto prefixBeg = prefixSum.select_iter(nonEmptyIndex + 1);
         auto it = first.predecessor(prefixBeg->second + i);
         assert(first[prefixBeg->second] && first.predecessor(prefixBeg->second)->second == prefixBeg->second);
         size_type concRunId = it->first - first.predecessor(prefixBeg->second)->first;
         if (!hasEdge(node, gbwt::ENDMARKER))
             return concRunId;
-        size_type num0RunsBefore = firstByAlphabet.successor(p.second*effective+i)->first;
+        size_type num0RunsBefore = firstByAlphabet.successor(nonEmptyIndex*effective+i)->first;
         size_type num0Before = firstByAlphComp.select_iter(num0RunsBefore + 1)->second;
-        auto alphPref = firstByAlphabet.successor(p.second*effective);
+        auto alphPref = firstByAlphabet.successor(nonEmptyIndex*effective);
         num0RunsBefore -= alphPref->first;
         num0Before -= this->firstByAlphComp.select_iter(alphPref->first + 1)->second;
         if (bwtAt(node, i) == gbwt::ENDMARKER) {
@@ -807,66 +806,66 @@ namespace lf_gbwt{
         if (i >= this->nodeSize(revFrom))
             return gbwt::invalid_node();
 
-        if (ind->first) {
-            size_type prefixLength = prefixSum.select_iter(ind->second + 1)->second;
+        if (ind.first) {
+            size_type prefixLength = this->smallRecords.prefixSum.select_iter(ind.second + 1)->second;
             size_type predoutrank = (this->smallRecords.firstByAlphabet.select_iter(
                     this->smallRecords.firstByAlphComp.predecessor(prefixLength + i)->first + 1
-                    )->second - (prefixLength*this->smallRecords.maxOutdegree))/this->smallRecords.size(ind->second);
+                    )->second - (prefixLength*this->smallRecords.maxOutdegree))/this->smallRecords.size(ind.second);
 
             //check if before predoutrank is its reverse
-            auto alplhIter = this->smallRecords.alphabet.select_iter(
-                    this->smallRecords.successor(ind->second * this->effective())->first + 1 + predoutrank
+            auto alphIter = this->smallRecords.alphabet.select_iter(
+                    this->smallRecords.alphabet.successor(ind.second * this->effective())->first + 1 + predoutrank
                     );
             if (predoutrank > 0) {
                 auto prevAlphIter = alphIter;
                 --prevAlphIter;
-                if (this->toNode(prevAlphIter->second - ind->second * this->effective()) == revNode(alphIter->second - ind->second * this->effective())) {
+                if (this->toNode(prevAlphIter->second - ind.second * this->effective()) == revNode(alphIter->second - ind.second * this->effective())) {
                     size_type beforePrevAlph = this->smallRecords.firstByAlphComp.select_iter(1+
-                            this->smallRecords.firstByAlphabet.successor((predoutrank-1)*this->smallRecords.size(ind->second) + prefixLength*this->smallRecords.maxOutdegree)
+                            this->smallRecords.firstByAlphabet.successor((predoutrank-1)*this->smallRecords.size(ind.second) + prefixLength*this->smallRecords.maxOutdegree)->first
                             )->second;
                     size_type prevAlphSize   = this->smallRecords.firstByAlphComp.select_iter(1+
-                            this->smallRecords.firstByAlphabet.successor((predoutrank)  *this->smallRecords.size(ind->second) + prefixLength*this->smallRecords.maxOutdegree)
+                            this->smallRecords.firstByAlphabet.successor((predoutrank)  *this->smallRecords.size(ind.second) + prefixLength*this->smallRecords.maxOutdegree)->first
                             )->second;
                     size_type AlphSize       = this->smallRecords.firstByAlphComp.select_iter(1+
-                            this->smallRecords.firstByAlphabet.successor((predoutrank+1)*this->smallRecords.size(ind->second) + prefixLength*this->smallRecords.maxOutdegree)
+                            this->smallRecords.firstByAlphabet.successor((predoutrank+1)*this->smallRecords.size(ind.second) + prefixLength*this->smallRecords.maxOutdegree)->first
                             )->second;
                     AlphSize -= prevAlphSize;
                     prevAlphSize -= beforePrevAlph;
                     beforePrevAlph -= prefixLength;
                     if (i < beforePrevAlph + AlphSize)
-                        return revNode(alphIter->second - ind->second*this->effective());
-                    return this->toNode(alphIter->second - ind->second*this->effective());
+                        return revNode(alphIter->second - ind.second*this->effective());
+                    return this->toNode(alphIter->second - ind.second*this->effective());
                 }
             }
             
             //check if after predoutrank is its reverse
             auto afterAlphIter = alphIter;
             ++afterAlphIter;
-            if (afterAlphIter/this->effective() == ind->second) {
-                if (this->toNode(afterAlphIter->second - ind->second * this->effective()) == revNode(alphIter->second - ind->second * this->effective())) {
+            if (afterAlphIter->second/this->effective() == ind.second) {
+                if (this->toNode(afterAlphIter->second - ind.second * this->effective()) == revNode(alphIter->second - ind.second * this->effective())) {
                     size_type beforeAlph    = this->smallRecords.firstByAlphComp.select_iter(1+
-                            this->smallRecords.firstByAlphabet.successor((predoutrank)  *this->smallRecords.size(ind->second) + prefixLength*this->smallRecords.maxOutdegree)
+                            this->smallRecords.firstByAlphabet.successor((predoutrank)  *this->smallRecords.size(ind.second) + prefixLength*this->smallRecords.maxOutdegree)->first
                             )->second;
                     size_type AlphSize      = this->smallRecords.firstByAlphComp.select_iter(1+
-                            this->smallRecords.firstByAlphabet.successor((predoutrank+1)*this->smallRecords.size(ind->second) + prefixLength*this->smallRecords.maxOutdegree)
+                            this->smallRecords.firstByAlphabet.successor((predoutrank+1)*this->smallRecords.size(ind.second) + prefixLength*this->smallRecords.maxOutdegree)->first
                             )->second;
                     size_type AfterAlphSize = this->smallRecords.firstByAlphComp.select_iter(1+
-                            this->smallRecords.firstByAlphabet.successor((predoutrank+2)*this->smallRecords.size(ind->second) + prefixLength*this->smallRecords.maxOutdegree)
+                            this->smallRecords.firstByAlphabet.successor((predoutrank+2)*this->smallRecords.size(ind.second) + prefixLength*this->smallRecords.maxOutdegree)->first
                             )->second;
                     AfterAlphSize -= AlphSize;
                     AlphSize -= beforeAlph;
                     beforeAlph -= prefixLength;
                     if (i < beforeAlph + AfterAlphSize)
-                        return revNode(afterAlphIter->second - ind->second*this->effective());
-                    return this->toNode(afterAlphIter->second - ind->second*this->effective());
+                        return revNode(afterAlphIter->second - ind.second*this->effective());
+                    return this->toNode(afterAlphIter->second - ind.second*this->effective());
 
                 }
             }
 
-            return revNode(alphIter->second - ind->second*this->effective());
+            return revNode(alphIter->second - ind.second*this->effective());
         }
         else {
-            const CompressedRecord & rev = this->largeRecords[ind->second];
+            const CompressedRecord & rev = this->largeRecords[ind.second];
             size_type predoutrank = rev.firstByAlphabet.select_iter(
                     rev.firstByAlphComp.predecessor(i)->first+1
                     )->second/rev.size();
@@ -973,7 +972,7 @@ namespace lf_gbwt{
         }
         std::vector<CompressedRecord> bwt;
         bwt.resize(source.effective());
-        source.bwt.forEach([this] (size_type a, const gbwt::CompressedRecord& rec) {bwt[a] = CompressedRecord(rec, this);});
+        source.bwt.forEach([this, &bwt] (size_type a, const gbwt::CompressedRecord& rec) {bwt[a] = CompressedRecord(rec, this);});
         if(gbwt::Verbosity::level >= gbwt::Verbosity::BASIC)
         {
             double seconds = gbwt::readTimer() - bwtStart;
@@ -992,10 +991,10 @@ namespace lf_gbwt{
         //c is the total length of all nodes of this size
         std::unordered_map<size_type, std::tuple<size_type, size_type, size_type>> outdegreeCounts;
         #pragma omp parallel for schedule(dynamic, 1)
-        for (const CompressedRecord& rec : bwt) {
-            size_type outdegree = rec.outdegree();
-            size_type bytes = sdsl::size_in_bytes(rec);
-            size_type length = rec.size();
+        for (size_type i = 0; i < bwt.size(); ++i) {
+            size_type outdegree = bwt[i].outdegree();
+            size_type bytes = sdsl::size_in_bytes(bwt[i]);
+            size_type length = bwt[i].size();
 
             #pragma omp critical 
             {
@@ -1014,7 +1013,10 @@ namespace lf_gbwt{
                 << outdegreeCounts.size() << " unique outdegrees and the maximum is " << maxOutdegreeFound << "." << std::endl;
         }
         //initialize this for if maxOutdegree = 0
-        this->isSmall = sdsl::sd_vector<>(sdsl::sd_vector_builder(bwt.size(), 0));
+        {
+            sdsl::sd_vector_builder temp(bwt.size(), 0);
+            this->isSmall = sdsl::sd_vector<>(temp);
+        }
         this->largeRecords = bwt;
 
         SmallRecordArray tempSmallRecords;
@@ -1023,7 +1025,7 @@ namespace lf_gbwt{
         assert(maxOutdegreeFound < size_type(1) << size_type(32));
         for (size_type nextOutdegree = 0; nextOutdegree < maxOutdegreeFound + 1; ++nextOutdegree) {
             //find nextOutdegree to add
-            if (!outdegreeCounts.contains(nextOutdegree))
+            if (outdegreeCounts.count(nextOutdegree) == 0)
                 continue;
             double thisOutdegreeStart = gbwt::readTimer();
             if(gbwt::Verbosity::level >= gbwt::Verbosity::BASIC)
@@ -1048,7 +1050,8 @@ namespace lf_gbwt{
                     emptyRecordsAssist, lengthPrefixSumAssist, outgoingAssist,
                     firstAssist, firstByAlphabetAssist, alphabetByRunAssist,
                     firstByAlphCompAssist;
-                for (const CompressedRecord& rec : bwt) {
+                for (size_type i = 0; i < this->effective(); ++i) {
+                    const CompressedRecord& rec = bwt[i];
                     if (rec.outdegree() >= tempSmallRecords.maxOutdegree) {
                         largeRecords.push_back(rec);
                         continue;
@@ -1057,6 +1060,7 @@ namespace lf_gbwt{
                         emptyRecordsAssist.push_back(recordNum);
                     }
                     else {
+                        gbwt::CompressedRecord gRec = source.record(source.toNode(i));
                         std::vector<std::vector<std::pair<size_type,size_type>>> localFirstByAlphabetAssist;
                         localFirstByAlphabetAssist.resize(tempSmallRecords.maxOutdegree);
 
@@ -1065,13 +1069,13 @@ namespace lf_gbwt{
                         prevOutdegreePrefixSum += rec.outdegree();
                         lengthPrefixSumAssist.push_back(prevLengthPrefixSum);
                         prevLengthPrefixSum += recLength;
-                        for (const auto& edge : rec.outgoing) {
-                            outgoingAssist.push_back(edge.second);
-                            alphabetAssist.push_back((nonemptyRecordNum * this->effective()) + this->toComp(edge.first));
-                        }
+                        for (const auto& edge : rec.outgoing)
+                            outgoingAssist.push_back(edge);
+                        for (auto it = rec.alphabet.one_begin(); it != rec.alphabet.one_end(); ++it)
+                            alphabetAssist.push_back((nonemptyRecordNum * this->effective()) + it->second);
 
-                        gbwt::CompressedRecordFullIterator iter(rec);
-                        size_type start, runInd = 0;
+                        gbwt::CompressedRecordFullIterator iter(gRec);
+                        size_type start;
                         while(!iter.end()) {
                             start = iter.offset() - iter.run.second;
                             firstAssist.push_back(start + lengthPrefixSumAssist.back());
@@ -1089,15 +1093,15 @@ namespace lf_gbwt{
                             }
                         }
                         assert(currInd == prevLengthPrefixSum);
-                        ++nonEmptyRecordNum;
+                        ++nonemptyRecordNum;
                     }
                     ++recordNum;
                 }
-                assert(recordNum - nonEmptyRecordNum == emptyRecordsAssist.size());
+                assert(recordNum - nonemptyRecordNum == emptyRecordsAssist.size());
                 assert(this->effective() < (size_type(1) << size_type(32)));
 
                 //build all structures using assist vectors
-                auto buildSD = [] (sdsl::sd_vector& toBuild, const std::vector<size_type>& data, const size_type size, const size_type setBits) {
+                auto buildSD = [] (sdsl::sd_vector<>& toBuild, const std::vector<size_type>& data, const size_type size, const size_type setBits) {
                     //assumes data sorted
                     //assert(std::is_sorted(data.begin(), data.end());
                     assert(size >= setBits);
@@ -1113,31 +1117,31 @@ namespace lf_gbwt{
                         toBuild[i] = data[i];
                     sdsl::util::bit_compress(toBuild);
                 };
-                buildSD(tempSmallRecords.outDegreePrefixSum, outdegreePrefixSumAssist, prevOutdegreePrefixSum, nonEmptyRecordNum);
-                buildSD(tempSmallRecords.emptyRecords, emptyRecordsAssists, recordNum, recordNum - nonEmptyRecordNum);
-                buildSD(tempSmallRecords.prefixSum, lengthPrefixSumAssist, prevLengthPrefixSum, nonEmptyRecordNum);
-                builIntVec(tempSmallRecords.outgoing, outgoingAssist);
+                buildSD(tempSmallRecords.outDegreePrefixSum, outdegreePrefixSumAssist, prevOutdegreePrefixSum, nonemptyRecordNum);
+                buildSD(tempSmallRecords.emptyRecords, emptyRecordsAssist, recordNum, recordNum - nonemptyRecordNum);
+                buildSD(tempSmallRecords.prefixSum, lengthPrefixSumAssist, prevLengthPrefixSum, nonemptyRecordNum);
+                buildIntVec(tempSmallRecords.outgoing, outgoingAssist);
                 buildSD(tempSmallRecords.first, firstAssist, prevLengthPrefixSum, firstAssist.size());
-                buildSD(tempSmallRecords.firstByAlphabet, firstByAlphabetAssist, prevLengthPrefixSum*maxOutdegree, firstAssist.size());
+                buildSD(tempSmallRecords.firstByAlphabet, firstByAlphabetAssist, prevLengthPrefixSum*tempSmallRecords.maxOutdegree, firstAssist.size());
                 buildSD(tempSmallRecords.firstByAlphComp, firstByAlphCompAssist, prevLengthPrefixSum, firstAssist.size());
-                buildSD(tempSmallRecords.alphabet, alphabetAssist, this->effective()*this->effective, prevOutdegreePrefixSum);
+                buildSD(tempSmallRecords.alphabet, alphabetAssist, this->effective()*this->effective(), prevOutdegreePrefixSum);
                 buildIntVec(tempSmallRecords.alphabetByRun, alphabetByRunAssist);
             }
 
-            size_type prevIsSmallSize = sdsl::size_in_bytes(isSmall),
+            size_type prevIsSmallSize = sdsl::size_in_bytes(this->isSmall),
                       prevSmallRecordsSize = sdsl::size_in_bytes(this->smallRecords),
                       prevLargeRecordsSize = sdsl::size_in_bytes(this->largeRecords),
                       prevSize = prevIsSmallSize + prevSmallRecordsSize + prevLargeRecordsSize,
                       tempIsSmallSize = sdsl::size_in_bytes(tempIsSmall),
-                      tempSmallRecordsSize = sdsl::size_in_bytes(tempsmallRecords),
+                      tempSmallRecordsSize = sdsl::size_in_bytes(tempSmallRecords),
                       tempLargeRecordsSize = sdsl::size_in_bytes(tempLargeRecords),
                       tempSize = tempIsSmallSize + tempSmallRecordsSize + tempLargeRecordsSize;
 
             if(gbwt::Verbosity::level >= gbwt::Verbosity::BASIC)
             {
                 std::cerr << "lf_GBWT::GBWT::GBWT(): Finished splitting nodes in " << gbwt::readTimer() - thisOutdegreeStart << " seconds." << std::endl
-                    << "Previously, the three structures (isSmall, smallRecords, largeRecords) took " << prevSize << " bytes in total, respectively ( " << prevIsSmallSize << ", " << prevSmallRecordsSize << ", " << prevLargeRecordsSize ")." << std::endl
-                    << "Now, the new structures take                                                " << tempSize << " bytes in total, respectively ( " << tempIsSmallSize << ", " << tempSmallRecordsSize << ", " << tempLargeRecordsSize ")." << std::endl;
+                    << "Previously, the three structures (isSmall, smallRecords, largeRecords) took " << prevSize << " bytes in total, respectively ( " << prevIsSmallSize << ", " << prevSmallRecordsSize << ", " << prevLargeRecordsSize << ")." << std::endl
+                    << "Now, the new structures take                                                " << tempSize << " bytes in total, respectively ( " << tempIsSmallSize << ", " << tempSmallRecordsSize << ", " << tempLargeRecordsSize << ")." << std::endl;
             }
 
             if (tempSize >= prevSize) {
@@ -1145,8 +1149,8 @@ namespace lf_gbwt{
             }
 
             this->isSmall = std::move(tempIsSmall);
-            this->SmallRecords = std::move(tempSmallRecords);
-            this->LargeRecords = std::move(tempLargeRecords);
+            this->smallRecords = std::move(tempSmallRecords);
+            this->largeRecords = std::move(tempLargeRecords);
             tempIsSmall = sdsl::sd_vector<>();
             tempSmallRecords = SmallRecordArray();
             tempLargeRecords = std::vector<CompressedRecord>();
@@ -1156,6 +1160,9 @@ namespace lf_gbwt{
 
         if(gbwt::Verbosity::level >= gbwt::Verbosity::BASIC)
         {
+            double smallSeconds = gbwt::readTimer() - smallRecordsStart;
+            std::cerr << "lf_GBWT::GBWT::GBWT(): Computed small and large record partition in " << smallSeconds << " seconds" << std::endl;
+
             double seconds = gbwt::readTimer() - start;
             std::cerr << "lf_GBWT::GBWT::GBWT(): Processed " << source.effective() << " nodes of total length " << this->size() << " in " << seconds << " seconds" << std::endl;
         }
@@ -1230,7 +1237,7 @@ namespace lf_gbwt{
 
         //determine the offset 
         auto ind = this->isSmallAndIndex(pred);
-        size_type offset = (ind->first)? this->smallRecords.offsetTo(ind.second, this->toComp(from), i)
+        size_type offset = (ind.first)? this->smallRecords.offsetTo(ind.second, this->toComp(from), i)
             : this->largeRecords[ind.second].offsetTo(this->toComp(from), i);
         if (offset == gbwt::invalid_offset()) { return {pred, offset}; return gbwt::invalid_edge(); }
 
