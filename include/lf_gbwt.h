@@ -274,6 +274,13 @@ namespace lf_gbwt{
             size_type effective() const { return this->header.alphabet_size - this->header.offset; }
 
             std::pair<size_type, size_type> runs() const;
+            std::pair<size_type, size_type> runs(const gbwt::node_type node) const {
+                if (!contains(node))
+                   return gbwt::invalid_edge(); 
+                auto ind = isSmallAndIndex(this->toComp(node));
+                return (ind.first)? this->smallRecords.runs(ind.second) : this->largeRecords[ind.second].runs();
+            }
+
 
             bool bidirectional() const { return this->header.get(gbwt::GBWTHeader::FLAG_BIDIRECTIONAL); }
 
@@ -311,6 +318,15 @@ namespace lf_gbwt{
             gbwt::node_type firstNode() const { return this->header.offset + 1; }
             gbwt::comp_type toComp(gbwt::node_type node) const { return (node == 0 ? node : node - this->header.offset); }
             gbwt::node_type toNode(gbwt::comp_type comp) const { return (comp == 0 ? comp : comp + this->header.offset); }
+            gbwt::node_type bwt(const gbwt::node_type node, const gbwt::size_type i) const {
+                if (!contains(node))
+                    return gbwt::invalid_offset();
+                auto ind = isSmallAndIndex(this->toComp(node));
+                return this->toNode(
+                        (ind.first)? this->smallRecords.bwtAt(ind.second, i): this->largeRecords[ind.second][i]
+                        );
+            }
+
 
             size_type nodeSize(gbwt::node_type node) const { auto ind = this->isSmallAndIndex(this->toComp(node)); return (ind.first)? smallRecords.size(ind.second) : this->largeRecords[ind.second].size(); }
             bool empty(gbwt::node_type node) const { return this->nodeSize(node) == 0; }
