@@ -76,6 +76,7 @@ longMatchQueryBrute(const gbwt::GBWT& x, const gbwt::size_type L, const gbwt::ve
 std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type,gbwt::size_type>>
 longMatchQuery2(const gbwt::GBWT& x, const gbwt::FastLocate& r, const FastLCP& l, const gbwt::size_type L, const gbwt::vector_type& Q) {
     //std::cout << "L2" << std::endl;
+    std::cout << "In longMatchQuery2" << std::endl;
     for (gbwt::node_type a : Q)
         if (!x.contains(a) || x.nodeSize(a) == 0)
             return {};
@@ -147,6 +148,7 @@ longMatchQuery2(const gbwt::GBWT& x, const gbwt::FastLocate& r, const FastLCP& l
     std::cout << "block: [" << block.first << "," << block.second << "]" << std::endl;
     AddLongMatchesWholeBlock(r, l, inBlock, 0, Qs, block, topSuff, matches);
     assert(inBlock.empty());
+    std::cout << "Leaving longMatchQuery2" << std::endl;
     return matches;
 }
 

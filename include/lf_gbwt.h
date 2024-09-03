@@ -351,11 +351,13 @@ namespace lf_gbwt{
             std::pair<bool, gbwt::size_type> isSmallAndIndex(gbwt::comp_type comp) const {
                 assert(comp < this->effective());
                 //std::cout << "isSmallAndIndex(comp: " << comp << ")" << std::endl;
-                //for (auto it = isSmall.one_begin(); it != isSmall.one_end(); ++it) 
-                    //std::cout << "(" << it->first << ",  " << it->second << ")\t";
-                //std::cout << std::endl;
-                auto nextSmall = isSmall.successor(comp);
-                return (nextSmall->second == comp)? std::pair<bool,gbwt::size_type>{true, nextSmall->first} : std::pair<bool,gbwt::size_type>{false, comp - nextSmall->first};
+                /*for (auto it = isSmall.one_begin(); it != isSmall.one_end(); ++it) 
+                    std::cout << "(" << it->first << ",  " << it->second << ")\t";
+                std::cout << std::endl;*/
+                //numSmall in [0, comp)
+                gbwt::size_type numSmall = isSmall.successor(comp)->first;
+                //auto nextSmall = isSmall.successor(comp);
+                return (isSmall[comp])? std::pair<bool,gbwt::size_type>{true, numSmall} : std::pair<bool,gbwt::size_type>{false, comp-numSmall};
             }
 
             // On error: invalid_edge().
@@ -803,7 +805,7 @@ namespace lf_gbwt{
         if (i >= size(node)) return gbwt::invalid_offset();
         size_type outrank = compAlphabetAt(node, i);
         auto it = alphabet.select_iter(outrank + alphabet.successor(p.second*effective)->first + 1);
-        return it->second - p.second*nonEmptyRecords();
+        return it->second - p.second*effective;
     }
 
     bool SmallRecordArray::hasEdge(const SmallRecordArray::size_type node, const gbwt::comp_type to) const {
@@ -829,6 +831,7 @@ namespace lf_gbwt{
     }
 
     SmallRecordArray::size_type SmallRecordArray::logicalRunId(const SmallRecordArray::size_type node, const SmallRecordArray::size_type i) const {
+        std::cout << "logicalRunId(node: " << node << ", i " << i << ")" << std::endl;
         assert(node < records);
         size_type nodeLength = size(node);
         if (i >= nodeLength)
@@ -840,16 +843,19 @@ namespace lf_gbwt{
         size_type concRunId = it->first - first.predecessor(prefixBeg->second)->first;
         if (!hasEdge(node, gbwt::ENDMARKER))
             return concRunId;
-        size_type num0RunsBefore = firstByAlphabet.successor(nonEmptyIndex*effective+i)->first;
+        size_type num0RunsBefore = firstByAlphabet.successor(maxOutdegree*prefixBeg->second + i)->first;
         size_type num0Before = firstByAlphComp.select_iter(num0RunsBefore + 1)->second;
-        auto alphPref = firstByAlphabet.successor(nonEmptyIndex*effective);
+        auto alphPref = firstByAlphabet.successor(maxOutdegree*prefixBeg->second);
         num0RunsBefore -= alphPref->first;
         num0Before -= this->firstByAlphComp.select_iter(alphPref->first + 1)->second;
-        if (bwtAt(node, i) == gbwt::ENDMARKER) {
-            //remove 0s after i from num0before
+        std::cout << "concRunId " << concRunId << " num0RunsBefore " << num0RunsBefore << " num0Before " << num0Before << std::endl;
+        if (i != it->second - prefixBeg->second && bwtAt(node, i - 1) == gbwt::ENDMARKER) {
+            //remove 0s after and including i from num0before if the last run before i is of endmarkers
             ++it;
             num0Before -= it->second - i - prefixBeg->second;
         }
+        std::cout << "concRunId " << concRunId << " num0RunsBefore " << num0RunsBefore << " num0Before " << num0Before << std::endl;
+        std::cout << "leaving logicalRunId" << std::endl;
         return concRunId - num0RunsBefore + num0Before;
     }
 
@@ -1117,10 +1123,10 @@ namespace lf_gbwt{
                     }
                     if (rec.outdegree() == 0) {
                         emptyRecordsAssist.push_back(recordNum);
-                        tempIsSmallAssist.push_back(recordNum);
+                        tempIsSmallAssist.push_back(i);
                     }
                     else {
-                        tempIsSmallAssist.push_back(recordNum);
+                        tempIsSmallAssist.push_back(i);
                         gbwt::CompressedRecord gRec = source.record(source.toNode(i));
                         std::vector<std::vector<std::pair<size_type,size_type>>> localFirstByAlphabetAssist;
                         localFirstByAlphabetAssist.resize(tempSmallRecords.maxOutdegree);
@@ -1203,9 +1209,10 @@ namespace lf_gbwt{
 
             if(gbwt::Verbosity::level >= gbwt::Verbosity::BASIC)
             {
-                std::cerr << "lf_GBWT::GBWT::GBWT(): Finished splitting nodes in " << gbwt::readTimer() - thisOutdegreeStart << " seconds." << std::endl
+                std::cerr << "lf_GBWT::GBWT::GBWT(): Finished splitting nodes in " << gbwt::readTimer() - thisOutdegreeStart << " seconds. There are " << tempIsSmall.ones() << " small Records and " << tempIsSmall.size() - tempIsSmall.ones() << " large records."  << std::endl
                     << "lf_GBWT::GBWT::GBWT(): Previously, the three structures (isSmall, smallRecords, largeRecords) took " << prevSize << " bytes in total, respectively ( " << prevIsSmallSize << ", " << prevSmallRecordsSize << ", " << prevLargeRecordsSize << ")." << std::endl
                     << "lf_GBWT::GBWT::GBWT(): Now, the new structures take                                                " << tempSize << " bytes in total, respectively ( " << tempIsSmallSize << ", " << tempSmallRecordsSize << ", " << tempLargeRecordsSize << ")." << std::endl;
+                assert(tempIsSmall.size() - tempIsSmall.ones() == tempLargeRecords.size());
             }
 
             if (tempSize >= prevSize) {
@@ -1226,6 +1233,8 @@ namespace lf_gbwt{
         {
             double smallSeconds = gbwt::readTimer() - smallRecordsStart;
             std::cerr << "lf_GBWT::GBWT::GBWT(): Computed small and large record partition in " << smallSeconds << " seconds" << std::endl;
+            std::cerr << "lf_GBWT::GBWT::GBWT(): There are " << isSmall.ones() << " small Records and " << isSmall.size() - isSmall.ones() << " large records." << std::endl;
+            assert(largeRecords.size() == isSmall.size() - isSmall.ones());
 
             double seconds = gbwt::readTimer() - start;
             std::cerr << "lf_GBWT::GBWT::GBWT(): Processed " << source.effective() << " nodes of total length " << this->size() << " in " << seconds << " seconds" << std::endl;

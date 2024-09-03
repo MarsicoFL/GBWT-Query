@@ -172,6 +172,7 @@ std::pair<std::vector<gbwt::size_type>,std::vector<gbwt::size_type>>
 virtualInsertionWithSuffGBWT(const gbwt::GBWT& g, const gbwt::FastLocate& r, const FastLCP& l, const gbwt::vector_type& Qs) {
     auto LFWithSuff = 
         [&g, &r, &l] (const gbwt::size_type prevPos, const gbwt::size_type prevSuff, const gbwt::node_type from, const gbwt::node_type to) -> std::pair<gbwt::size_type,gbwt::size_type> {
+            std::cout << "In LFWithSuff( prevPos: " << prevPos << ", prevSuff: " << prevSuff << ", from: " << from << ", to: " << to << ")" << std::endl;
             gbwt::CompressedRecord rec = g.record(from);
 
             gbwt::size_type outrank = rec.edgeTo(to);
@@ -218,7 +219,7 @@ std::pair<std::vector<gbwt::size_type>,std::vector<gbwt::size_type>>
 virtualInsertionWithSuffLFGBWT(const lf_gbwt::GBWT & lfg, const gbwt::FastLocate& r, const FastLCP & l, const gbwt::vector_type& Qs) {
     auto LFWithSuff = 
         [&lfg, &r, &l] (const gbwt::size_type prevPos, const gbwt::size_type prevSuff, const gbwt::node_type from, const gbwt::node_type to) -> std::pair<gbwt::size_type,gbwt::size_type> {
-            std::cout << "In LFWithSuff( prevPos: " << prevPos << ", prevSuff: " << prevSuff << ", from: " << from << ", to: " << to << ")" << std::endl;
+            std::cout << "In LFWithSuffLFGBWT( prevPos: " << prevPos << ", prevSuff: " << prevSuff << ", from: " << from << ", to: " << to << ")" << std::endl;
             auto ind = lfg.isSmallAndIndex(lfg.toComp(from));
             gbwt::comp_type compTo= lfg.toComp(to);
             std::cout << "compTo: " << compTo << " ind: (" << ind.first << ", " << ind.second << ")" << std::endl;
@@ -245,7 +246,7 @@ virtualInsertionWithSuffLFGBWT(const lf_gbwt::GBWT & lfg, const gbwt::FastLocate
                 else if (newPos < lfg.nodeSize(to)) {
                     //predecessor run exists
                     auto prevRun = --nextRun;
-                    gbwt::size_type run_id = lfg.smallRecords.logicalRunId(ind.second, prevRun->second - ind.second*lfg.smallRecords.effective - outrank*lfg.smallRecords.size(ind.second));
+                    gbwt::size_type run_id = lfg.smallRecords.logicalRunId(ind.second, prevRun->second - prefixLength*lfg.smallRecords.maxOutdegree - outrank*lfg.smallRecords.size(ind.second));
                     return {newPos, r.locateNext(l.getSampleBot(from, run_id) - 1)};
                 }
                 return {newPos, gbwt::invalid_offset()};
@@ -717,7 +718,8 @@ AddLongMatchesLFGBWT(const lf_gbwt::GBWT& lfg, const gbwt::FastLocate& r, const 
             l.getSample(Qs[currQsInd], 
                     ((ind.first)? lfg.smallRecords.logicalRunId(ind.second, start->second - prefixSum): lfg.largeRecords[ind.second].logicalRunId(start->second))
                     );
-        std::cout << "lfg.smallRecords.logicalRunId(ind.second, start->second - prefixSum) " << lfg.smallRecords.logicalRunId(ind.second, start->second - prefixSum) << std::endl;
+        if (ind.first)
+            std::cout << "lfg.smallRecords.logicalRunId(ind.second, start->second - prefixSum) " << lfg.smallRecords.logicalRunId(ind.second, start->second - prefixSum) << std::endl;
         AddLongMatchesWholeBlock(r, l, inBlock, currQsInd, Qs, runBlock, firstSuff, matches);
     }
 

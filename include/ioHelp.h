@@ -86,9 +86,24 @@ void printGBWTandRindex(std::ostream& out, const gbwt::GBWT & g, const gbwt::Fas
             << setw(labelWidth) << "Comp:" << setw(width) << i  << std::flush
             << setw(labelWidth) << "Size:" << setw(width) << areEqual(size, lfg.nodeSize(node)) << std::flush
             << setw(labelWidth) << "ConcRuns:" << setw(width) << areEqual(a.runs().first, lfg.runs(node).first) << std::flush
-            << setw(labelWidth) << "LogiRuns:" << setw(width) << areEqual(a.runs().second, lfg.runs(node).second) <<'\n' << std::flush;
-        out << std::flush;
+            << setw(labelWidth) << "LogiRuns:" << setw(width) << areEqual(a.runs().second, lfg.runs(node).second) << std::flush;
         std::vector<gbwt::edge_type> outgoing = g.edges(node);
+
+        {
+            auto ind = lfg.isSmallAndIndex(i);
+            gbwt::size_type outgoingsize;
+            if (ind.first) {
+                gbwt::size_type outgoingPrefixSum = lfg.smallRecords.outDegreePrefixSum.select_iter(ind.second + 1)->second;
+                outgoingsize = lfg.smallRecords.outDegreePrefixSum.select_iter(ind.second + 2)->second - outgoingPrefixSum;
+            }
+            else {
+                outgoingsize = lfg.largeRecords[ind.second].outgoing.size();
+            }
+            out << setw(labelWidth) << "Outgoing:" << setw(width) << areEqual(g.edges(node).size(),  outgoingsize) << std::flush
+                << setw(labelWidth) << "Small?: "  << setw(width) << std::boolalpha << ind.first
+                << setw(labelWidth) << "Index: "   << setw(width) << ind.second << '\n';
+        }
+        out << std::flush;
 
 
 
@@ -198,7 +213,7 @@ void printGBWTandRindex(std::ostream& out, const gbwt::GBWT & g, const gbwt::Fas
             gbwt::size_type outgoingPrefixSum = lfg.smallRecords.outDegreePrefixSum.select_iter(ind.second + 1)->second;
             gbwt::size_type outgoingSize = lfg.smallRecords.outDegreePrefixSum.select_iter(ind.second + 2)->second - outgoingPrefixSum;
             assert(lfg.effective() == g.effective() && lfg.effective() == lfg.smallRecords.effective);
-            for (unsigned j = 0; j < outgoingSize; ++j){
+            for (unsigned j = 0; j < outgoing.size(); ++j){
                 out << '(' << setw(width) << areEqual(outgoing[j].first, lfg.toNode(lfg.smallRecords.alphabet.select_iter(outgoingPrefixSum + j + 1)->second - ind.second*lfg.smallRecords.effective))
                     << ',' << setw(width) << areEqual(outgoing[j].second, lfg.smallRecords.outgoing[j + outgoingPrefixSum]) << "),";
             }
