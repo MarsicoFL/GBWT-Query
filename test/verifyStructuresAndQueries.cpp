@@ -90,12 +90,12 @@ int main(int argc, char* argv[]){
     //(start position in Q, length, path ID)
     std::vector<std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type>>>                 matchWithoutPosition = {setMaximalMatchQueryN2(x,a), setMaximalMatchQuery0(x,a)};
     //(start position in Q, length, path ID, start position in path)
-    std::cout << "Finished matches without positons computation" << std::endl;
+    std::cout << "Finished matches without positions computation" << std::endl;
 
     std::vector<std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type,gbwt::size_type>>> matchWithPosition = {setMaximalMatchQueryBrute(x,a), setMaximalMatchQuery1(x, r, a)};
-    std::cout << "Finished first two matches with positons computation" << std::endl;
+    std::cout << "Finished first two matches with positions computation" << std::endl;
     matchWithPosition.push_back(setMaximalMatchQuery2(x, r, l, a));
-    std::cout << "Finished first three matches with positons computation" << std::endl;
+    std::cout << "Finished first three matches with positions computation" << std::endl;
     matchWithPosition.push_back(setMaximalMatchQuery3(lfg, r, l, a));
     matchWithPosition.push_back(setMaximalMatchQuery4(lfg, r, l, ct, a));
     matchWithPosition.push_back(setMaximalMatchQuery2_4(x, r, l, ct, a));
@@ -131,7 +131,7 @@ int main(int argc, char* argv[]){
         i *= 2;
     } while (LongMatches[0].size());
 
-    std::cout << "Finished matches with positons computation" << std::endl;
+    std::cout << "Finished matches with positions computation" << std::endl;
     std::cout << "BR: Matches of " << a << ":\n"
         << matchWithPosition[0] << "\n";
     std::cout << "N2: Matches of " << a << ":\n" 

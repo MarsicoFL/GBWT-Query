@@ -87,9 +87,25 @@ longMatchQuery2(const gbwt::GBWT& x, const gbwt::FastLocate& r, const FastLCP& l
 
     std::vector<gbwt::size_type> a, s;
     std::tie(a, s) = virtualInsertionWithSuffGBWT(x, r, l, Qs);
+    std::cout << "a: " ;
+    for (auto x : a)
+        std::cout << x << ' ';
+    std::cout << std::endl;
+    std::cout << "s: " ;
+    for (auto x : s)
+        std::cout << x << ' ';
+    std::cout << std::endl;
 
     std::vector<gbwt::size_type> lcpa, lcpb;
     std::tie(lcpa, lcpb) = lcpAboveBelowGBWT(x, a, Qs);
+    std::cout << "lcpa: " ;
+    for (auto x : lcpa)
+        std::cout << x << ' ';
+    std::cout << std::endl;
+    std::cout << "lcpb: " ;
+    for (auto x : lcpb)
+        std::cout << x << ' ';
+    std::cout << std::endl;
 
     //block is [f^L_i, g^L_i - 1]
     //assumes a.back() = 0 and Qs.back() = gbwt::ENDMARKER
@@ -97,9 +113,17 @@ longMatchQuery2(const gbwt::GBWT& x, const gbwt::FastLocate& r, const FastLCP& l
     gbwt::size_type topSuff = gbwt::invalid_offset(), botSuff = gbwt::invalid_offset();
     std::map<gbwt::size_type,gbwt::size_type> inBlock;
     for (gbwt::size_type i = Qs.size()-1; i != 0; --i){
+        std::cout << "block: [" << block.first << "," << block.second << "]" << std::endl;
+        std::cout << "topSuff: " << topSuff << " botSuff: " << botSuff << std::endl;
+        std::cout << "inBlock: ";
+        for (auto a: inBlock) 
+            std::cout << "(" <<  a.first << ":" << a.second << ") ";
+        std::cout << std::endl;
         assert(inBlock.size() == gbwt::Range::length(block));
         //output matches
         std::tie(block, topSuff, botSuff) = AddLongMatchesFastLCP(x, r, l, inBlock, i, Qs, block, topSuff, botSuff, matches);
+        std::cout << "midblock: [" << block.first << "," << block.second << "]" << std::endl;
+        std::cout << "topSuff " << topSuff << " botSuff " << botSuff << std::endl;
         //assert if block empty topSuff, botSuff = gbwt::invalid_offset()
         assert(!gbwt::Range::empty(block) || (botSuff == gbwt::invalid_offset() && topSuff == gbwt::invalid_offset()));
         //assert if block not empty, topsuff, botsuff != gbwt::invalid_offset()
@@ -120,6 +144,7 @@ longMatchQuery2(const gbwt::GBWT& x, const gbwt::FastLocate& r, const FastLCP& l
         }
         assert(inBlock.size() == gbwt::Range::length(block));
     }
+    std::cout << "block: [" << block.first << "," << block.second << "]" << std::endl;
     AddLongMatchesWholeBlock(r, l, inBlock, 0, Qs, block, topSuff, matches);
     assert(inBlock.empty());
     return matches;
@@ -127,6 +152,7 @@ longMatchQuery2(const gbwt::GBWT& x, const gbwt::FastLocate& r, const FastLCP& l
 
 std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type,gbwt::size_type>>
 longMatchQuery3(const lf_gbwt::GBWT& lfg, const gbwt::FastLocate& r, const FastLCP& l, const gbwt::size_type L, const gbwt::vector_type& Q) {
+    std::cout << "In longMatchQuery3" << std::endl;
     for (gbwt::node_type a : Q)
         if (!lfg.contains(a) || lfg.nodeSize(a) == 0)
             return {};
@@ -138,17 +164,41 @@ longMatchQuery3(const lf_gbwt::GBWT& lfg, const gbwt::FastLocate& r, const FastL
 
     std::vector<gbwt::size_type> a, s;
     std::tie(a, s) = virtualInsertionWithSuffLFGBWT(lfg, r, l, Qs);
+    std::cout << "a: " ;
+    for (auto x : a)
+        std::cout << x << ' ';
+    std::cout << std::endl;
+    std::cout << "s: " ;
+    for (auto x : s)
+        std::cout << x << ' ';
+    std::cout << std::endl;
 
     std::vector<gbwt::size_type> lcpa, lcpb;
     std::tie(lcpa, lcpb) = lcpAboveBelowLFGBWT(lfg, a, Qs);
+    std::cout << "lcpa: " ;
+    for (auto x : lcpa)
+        std::cout << x << ' ';
+    std::cout << std::endl;
+    std::cout << "lcpb: " ;
+    for (auto x : lcpb)
+        std::cout << x << ' ';
+    std::cout << std::endl;
 
     gbwt::range_type block = gbwt::Range::empty_range();
     gbwt::size_type topSuff = gbwt::invalid_offset(), botSuff = gbwt::invalid_offset();
     std::map<gbwt::size_type,gbwt::size_type> inBlock;
     for (gbwt::size_type i = Qs.size()-1; i != 0; --i) {
+        std::cout << "block: [" << block.first << "," << block.second << "]" << std::endl;
+        std::cout << "topSuff: " << topSuff << " botSuff: " << botSuff << std::endl;
+        std::cout << "inBlock: ";
+        for (auto a: inBlock) 
+            std::cout << "(" <<  a.first << ":" << a.second << ") ";
+        std::cout << std::endl;
         assert(inBlock.size() == gbwt::Range::length(block));
         //output matches leaving last block and update block to [f^{L+1}_{i-1}, g^{L+1}_{i-1} - 1]
         std::tie(block, topSuff, botSuff) = AddLongMatchesLFGBWT(lfg, r, l, inBlock, i, Qs, block, topSuff, botSuff, matches);
+        std::cout << "midblock: [" << block.first << "," << block.second << "]" << std::endl;
+        std::cout << "topSuff " << topSuff << " botSuff " << botSuff << std::endl;
         //assert if block empty topSuff, botSuff = gbwt::invalid_offset()
         assert(!gbwt::Range::empty(block) || (botSuff == gbwt::invalid_offset() && topSuff == gbwt::invalid_offset()));
         //assert if block not empty, topsuff, botsuff != gbwt::invalid_offset()
@@ -170,8 +220,10 @@ longMatchQuery3(const lf_gbwt::GBWT& lfg, const gbwt::FastLocate& r, const FastL
         }
         assert(inBlock.size() == gbwt::Range::length(block));
     }
+    std::cout << "block: [" << block.first << "," << block.second << "]" << std::endl;
     AddLongMatchesWholeBlock(r, l, inBlock, 0, Qs, block, topSuff, matches);
     assert(inBlock.empty());
+    std::cout << "Leaving longMatchQuery3" << std::endl;
     return matches;
 }
 
@@ -180,6 +232,7 @@ longMatchQuery3(const lf_gbwt::GBWT& lfg, const gbwt::FastLocate& r, const FastL
 //assumes gbwt::ENDMARKER Is not in Q
 std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type,gbwt::size_type>>
 longMatchQuery4(const lf_gbwt::GBWT& lfg, const gbwt::FastLocate& r, const FastLCP& l, const CompText& ct, const gbwt::size_type L, const gbwt::vector_type& Q) {
+    std::cout << "In longMatchQuery4" << std::endl;
     for(gbwt::node_type a : Q)
         if (!lfg.contains(a) || lfg.nodeSize(a) == 0)
             return {};
@@ -191,17 +244,42 @@ longMatchQuery4(const lf_gbwt::GBWT& lfg, const gbwt::FastLocate& r, const FastL
 
     std::vector<gbwt::size_type> a, s;
     std::tie(a, s) = virtualInsertionWithSuffLFGBWT(lfg, r, l, Qs);
+    std::cout << "a: " ;
+    for (auto x : a)
+        std::cout << x << ' ';
+    std::cout << std::endl;
+    std::cout << "s: " ;
+    for (auto x : s)
+        std::cout << x << ' ';
+    std::cout << std::endl;
 
     std::vector<gbwt::size_type> lcpa, lcpb;
     std::tie(lcpa, lcpb) = lcpAboveBelowCT(lfg, l, ct, a, s, Qs);
+    std::cout << "lcpa: " ;
+    for (auto x : lcpa)
+        std::cout << x << ' ';
+    std::cout << std::endl;
+    std::cout << "lcpb: " ;
+    for (auto x : lcpb)
+        std::cout << x << ' ';
+    std::cout << std::endl;
     
     gbwt::range_type block = gbwt::Range::empty_range();
     gbwt::size_type topSuff = gbwt::invalid_offset(), botSuff = gbwt::invalid_offset();
     std::map<gbwt::size_type,gbwt::size_type> inBlock;
     for (gbwt::size_type i = Qs.size()-1; i != 0; --i) {
+        std::cout << "block: [" << block.first << "," << block.second << "]" << std::endl;
+        std::cout << "topSuff: " << topSuff << " botSuff: " << botSuff << std::endl;
+        std::cout << "inBlock: ";
+        for (auto a: inBlock) 
+            std::cout << "(" <<  a.first << ":" << a.second << ") ";
+        std::cout << std::endl;
         assert(inBlock.size() == gbwt::Range::length(block));
         //output matches leaving last block and update block to [f^{L+1}_{i-1}, g^{L+1}_{i-1} - 1]
         std::tie(block, topSuff, botSuff) = AddLongMatchesLFGBWT(lfg, r, l, inBlock, i, Qs, block, topSuff, botSuff, matches);
+        std::cout << "midblock: [" << block.first << "," << block.second << "]" << std::endl;
+        std::cout << "topSuff " << topSuff << " botSuff " << botSuff << std::endl;
+        //assert if block empty topSuff, botSuff = gbwt::invalid_offset()
         //assert if block empty topSuff, botSuff = gbwt::invalid_offset()
         assert(!gbwt::Range::empty(block) || (botSuff == gbwt::invalid_offset() && topSuff == gbwt::invalid_offset()));
         //assert if block not empty, topsuff, botsuff != gbwt::invalid_offset()
@@ -223,8 +301,10 @@ longMatchQuery4(const lf_gbwt::GBWT& lfg, const gbwt::FastLocate& r, const FastL
         }
         assert(inBlock.size() == gbwt::Range::length(block));
     }
+    std::cout << "block: [" << block.first << "," << block.second << "]" << std::endl;
     AddLongMatchesWholeBlock(r, l, inBlock, 0, Qs, block, topSuff, matches);
     assert(inBlock.empty());
+    std::cout << "Leaving longMatchQuery4" << std::endl;
     return matches;
 }
 
