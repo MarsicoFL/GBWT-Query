@@ -205,26 +205,26 @@ setMaximalMatchQuery2(const gbwt::GBWT & x, const gbwt::FastLocate &r, const Fas
     //compute virtual insertion positions
     std::vector<gbwt::size_type> a, s;
     std::tie(a, s) = virtualInsertionWithSuffGBWT(x, r, l, Qs);
-    std::cout << "a: " ;
-    for (auto x : a)
-        std::cout << x << ' ';
-    std::cout << std::endl;
-    std::cout << "s: " ;
-    for (auto x : s)
-        std::cout << x << ' ';
-    std::cout << std::endl;
+    //std::cout << "a: " ;
+    //for (auto x : a)
+        //std::cout << x << ' ';
+    //std::cout << std::endl;
+    //std::cout << "s: " ;
+    //for (auto x : s)
+        //std::cout << x << ' ';
+    //std::cout << std::endl;
 
     //compute lcps
     std::vector<gbwt::size_type> lcpa, lcpb;
     std::tie(lcpa, lcpb) = lcpAboveBelowGBWT(x, a, Qs);
-    std::cout << "lcpa: " ;
-    for (auto x : lcpa)
-        std::cout << x << ' ';
-    std::cout << std::endl;
-    std::cout << "lcpb: " ;
-    for (auto x : lcpb)
-        std::cout << x << ' ';
-    std::cout << std::endl;
+    //std::cout << "lcpa: " ;
+    //for (auto x : lcpa)
+        //std::cout << x << ' ';
+    //std::cout << std::endl;
+    //std::cout << "lcpb: " ;
+    //for (auto x : lcpb)
+        //std::cout << x << ' ';
+    //std::cout << std::endl;
 
     //output set maximal matches
     gbwt::size_type prev = 0, len;
@@ -240,7 +240,7 @@ setMaximalMatchQuery2(const gbwt::GBWT & x, const gbwt::FastLocate &r, const Fas
 
 std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type,gbwt::size_type>>
 setMaximalMatchQuery3(const lf_gbwt::GBWT & lfg, const gbwt::FastLocate &r, const FastLCP & l, const gbwt::vector_type & Q){
-    std::cout << "In setMaximalMatchQuery3" << std::endl;
+    //std::cout << "In setMaximalMatchQuery3" << std::endl;
     for (gbwt::node_type a : Q)
         if (!lfg.contains(a) || lfg.nodeSize(a) == 0)
             return {};
@@ -253,26 +253,26 @@ setMaximalMatchQuery3(const lf_gbwt::GBWT & lfg, const gbwt::FastLocate &r, cons
     //compute virtual insertion positions
     std::vector<gbwt::size_type> a, s;
     std::tie(a, s) = virtualInsertionWithSuffLFGBWT(lfg, r, l, Qs);
-    std::cout << "a: " ;
-    for (auto x : a)
-        std::cout << x << ' ';
-    std::cout << std::endl;
-    std::cout << "s: " ;
-    for (auto x : s)
-        std::cout << x << ' ';
-    std::cout << std::endl;
+    //std::cout << "a: " ;
+    //for (auto x : a)
+        //std::cout << x << ' ';
+    //std::cout << std::endl;
+    //std::cout << "s: " ;
+    //for (auto x : s)
+        //std::cout << x << ' ';
+    //std::cout << std::endl;
 
     //compute lcps
     std::vector<gbwt::size_type> lcpa, lcpb;
     std::tie(lcpa, lcpb) = lcpAboveBelowLFGBWT(lfg, a, Qs);
-    std::cout << "lcpa: " ;
-    for (auto x : lcpa)
-        std::cout << x << ' ';
-    std::cout << std::endl;
-    std::cout << "lcpb: " ;
-    for (auto x : lcpb)
-        std::cout << x << ' ';
-    std::cout << std::endl;
+    //std::cout << "lcpa: " ;
+    //for (auto x : lcpa)
+        //std::cout << x << ' ';
+    //std::cout << std::endl;
+    //std::cout << "lcpb: " ;
+    //for (auto x : lcpb)
+        //std::cout << x << ' ';
+    //std::cout << std::endl;
 
     //output set maximal matches
     gbwt::size_type prev = 0, len;
@@ -283,13 +283,13 @@ setMaximalMatchQuery3(const lf_gbwt::GBWT & lfg, const gbwt::FastLocate &r, cons
         }
         prev = len;
     }
-    std::cout << "Leaving setMaximalMatchQuery3" << std::endl;
+    //std::cout << "Leaving setMaximalMatchQuery3" << std::endl;
     return matches;
 }
 
 std::vector<std::tuple<gbwt::size_type,gbwt::size_type,gbwt::size_type,gbwt::size_type>>
 setMaximalMatchQuery4(const lf_gbwt::GBWT & lfg, const gbwt::FastLocate & r, const FastLCP & l, const CompText & ct, const gbwt::vector_type & Q){
-    std::cout << "In setMaximalMatchQuery4" << std::endl;
+    //std::cout << "In setMaximalMatchQuery4" << std::endl;
     for (gbwt::node_type a : Q)
         if (!lfg.contains(a) || lfg.nodeSize(a) == 0)
             return {};
@@ -299,32 +299,32 @@ setMaximalMatchQuery4(const lf_gbwt::GBWT & lfg, const gbwt::FastLocate & r, con
 
     gbwt::vector_type Qs = reverseAndAppendENDMARKER(Q);
 
-    std::cout << "Starting virtual insertion" << std::endl;
+    //std::cout << "Starting virtual insertion" << std::endl;
     //compute virtual insertion positions
     std::vector<gbwt::size_type> a, s;
     std::tie(a, s) = virtualInsertionWithSuffLFGBWT(lfg, r, l, Qs);
-    std::cout << "Finished virtual insertion, starting LCPs" << std::endl;
-    std::cout << "a: " ;
-    for (auto x : a)
-        std::cout << x << ' ';
-    std::cout << std::endl;
-    std::cout << "s: " ;
-    for (auto x : s)
-        std::cout << x << ' ';
-    std::cout << std::endl;
+    //std::cout << "Finished virtual insertion, starting LCPs" << std::endl;
+    //std::cout << "a: " ;
+    //for (auto x : a)
+        //std::cout << x << ' ';
+    //std::cout << std::endl;
+    //std::cout << "s: " ;
+    //for (auto x : s)
+        //std::cout << x << ' ';
+    //std::cout << std::endl;
 
     //compute lcps
     std::vector<gbwt::size_type> lcpa, lcpb;
     std::tie(lcpa, lcpb) = lcpAboveBelowCT(lfg, l, ct, a, s, Qs);
-    std::cout << "Finished LCPs, starting set maximal matches" << std::endl;
-    std::cout << "lcpa: " ;
-    for (auto x : lcpa)
-        std::cout << x << ' ';
-    std::cout << std::endl;
-    std::cout << "lcpb: " ;
-    for (auto x : lcpb)
-        std::cout << x << ' ';
-    std::cout << std::endl;
+    //std::cout << "Finished LCPs, starting set maximal matches" << std::endl;
+    //std::cout << "lcpa: " ;
+    //for (auto x : lcpa)
+        //std::cout << x << ' ';
+    //std::cout << std::endl;
+    //std::cout << "lcpb: " ;
+    //for (auto x : lcpb)
+        //std::cout << x << ' ';
+    //std::cout << std::endl;
 
     //output set maximal matches
     gbwt::size_type prev = 0, len;
@@ -335,7 +335,7 @@ setMaximalMatchQuery4(const lf_gbwt::GBWT & lfg, const gbwt::FastLocate & r, con
         }
         prev = len;
     }
-    std::cout << "Leaving setMaximalMatchQuery4" << std::endl;
+    //std::cout << "Leaving setMaximalMatchQuery4" << std::endl;
     return matches;
 }
 

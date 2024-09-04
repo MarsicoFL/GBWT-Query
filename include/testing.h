@@ -177,8 +177,9 @@ bool testIncremental(gbwt::GBWT & x, gbwt::FastLocate & r, FastLCP & l, lf_gbwt:
     if (!ct.verifyText()) { indexes = false; std::cout << "CompText not good!" << std::endl; }
 
     std::random_device rd;
-    //unsigned seed = rd();
-    unsigned seed = 0x54459889;
+    unsigned seed = rd();
+    //unsigned seed = 3126255437;
+    //unsigned seed = 0x54459889;
     std::cout << "seed for testIncremental: " << seed << "\n";
     std::mt19937_64 gen(seed);
     gbwt::vector_type Q, hap;
@@ -189,7 +190,7 @@ bool testIncremental(gbwt::GBWT & x, gbwt::FastLocate & r, FastLCP & l, lf_gbwt:
     for (unsigned i = 0; i < paths.size(); i += 2)
         builder.insert(paths[i], true);
 
-    auto logbase10 = [] (gbwt::size_type a) { double log = log10(a); return int(log) + (log > int(log)); };
+    //auto logbase10 = [] (gbwt::size_type a) { double log = log10(a); return int(log) + (log > int(log)); };
     for (unsigned i = 0; i < n; ++i){
         Q = generateHaplotype(x, 0.05, 0.025, gen, alphabetSize);
         if (Q.size()){
@@ -205,7 +206,6 @@ bool testIncremental(gbwt::GBWT & x, gbwt::FastLocate & r, FastLCP & l, lf_gbwt:
             ct.buildFullMem(l);
             if (!ct.verifyText()) { indexes = false; std::cout << "CompText not good!" << std::endl; }
         }
-        printGBWTandRindex(std::cout, x, r, l, lfg, ct, std::max(3, logbase10(std::max(x.sequences(), x.sigma())) + 1));
         //printGBWTandRindex(std::cout, x, r, l, lfg, ct, std::max(3, logbase10(std::max(x.sequences(), x.sigma())) + 1));
         result = queriesEqual(x, r, l, lfg, ct, Q = generateHaplotype(x, 0.05, 0.0, gen, alphabetSize));
         if (!result)

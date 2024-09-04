@@ -830,7 +830,7 @@ namespace lf_gbwt{
     }
 
     SmallRecordArray::size_type SmallRecordArray::logicalRunId(const SmallRecordArray::size_type node, const SmallRecordArray::size_type i) const {
-        std::cout << "logicalRunId(node: " << node << ", i " << i << ")" << std::endl;
+        //std::cout << "logicalRunId(node: " << node << ", i " << i << ")" << std::endl;
         assert(node < records);
         size_type nodeLength = size(node);
         if (i >= nodeLength)
@@ -847,14 +847,14 @@ namespace lf_gbwt{
         auto alphPref = firstByAlphabet.successor(maxOutdegree*prefixBeg->second);
         num0RunsBefore -= alphPref->first;
         num0Before -= this->firstByAlphComp.select_iter(alphPref->first + 1)->second;
-        std::cout << "concRunId " << concRunId << " num0RunsBefore " << num0RunsBefore << " num0Before " << num0Before << std::endl;
+        //std::cout << "concRunId " << concRunId << " num0RunsBefore " << num0RunsBefore << " num0Before " << num0Before << std::endl;
         if (i != it->second - prefixBeg->second && bwtAt(node, i - 1) == gbwt::ENDMARKER) {
             //remove 0s after and including i from num0before if the last run before i is of endmarkers
             ++it;
             num0Before -= it->second - i - prefixBeg->second;
         }
-        std::cout << "concRunId " << concRunId << " num0RunsBefore " << num0RunsBefore << " num0Before " << num0Before << std::endl;
-        std::cout << "leaving logicalRunId" << std::endl;
+        //std::cout << "concRunId " << concRunId << " num0RunsBefore " << num0RunsBefore << " num0Before " << num0Before << std::endl;
+        //std::cout << "leaving logicalRunId" << std::endl;
         return concRunId - num0RunsBefore + num0Before;
     }
 
