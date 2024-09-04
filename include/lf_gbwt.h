@@ -694,8 +694,7 @@ namespace lf_gbwt{
         assert(node < records);
         auto pos = emptyAndNonEmptyIndex(node);
         if (pos.first) return 0;
-        size_type n = nonEmptyRecords(); 
-        size_type ans = alphabet.successor(n*pos.second + n)->first - alphabet.successor(effective*pos.second)->first;
+        size_type ans = alphabet.successor((pos.second + 1) * effective)->first - alphabet.successor(pos.second * effective)->first;
         assert(ans != 0);
         return ans;
     }

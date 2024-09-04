@@ -93,8 +93,12 @@ void printGBWTandRindex(std::ostream& out, const gbwt::GBWT & g, const gbwt::Fas
             auto ind = lfg.isSmallAndIndex(i);
             gbwt::size_type outgoingsize;
             if (ind.first) {
+                /*
                 gbwt::size_type outgoingPrefixSum = lfg.smallRecords.outDegreePrefixSum.select_iter(ind.second + 1)->second;
                 outgoingsize = lfg.smallRecords.outDegreePrefixSum.select_iter(ind.second + 2)->second - outgoingPrefixSum;
+                */
+                outgoingsize = lfg.smallRecords.outdegree(ind.second);
+                //outDegreePrefixSum redundant? seems so.
             }
             else {
                 outgoingsize = lfg.largeRecords[ind.second].outgoing.size();
