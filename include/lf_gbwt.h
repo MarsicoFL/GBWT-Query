@@ -54,6 +54,7 @@ SOFTWARE.
 
 #include<gbwt/gbwt.h>
 #include<gbwt/internal.h>
+#include<random>
 
 namespace lf_gbwt{
     typedef std::uint8_t  byte_type;
@@ -424,10 +425,26 @@ namespace lf_gbwt{
             }*/
 
             bool verify(const gbwt::GBWT& g) {
+                assert(this->size() == g.size());
+                assert(this->sequences() == g.sequences());
+                assert(this->sigma() == g.sigma());
+                assert(this->effective() == g.effective());
+                //std::cout << "this runs " << this->runs().first << " g runs " << g.runs().first << std::endl;
+                //std::cout << "this runs " << this->runs().second<< " g runs " << g.runs().second<< std::endl;
+                assert(this->runs() == g.runs());
+                assert(this->bidirectional() == g.bidirectional());
                 bool equal = (this->size() == g.size()) && (this->sequences() == g.sequences()) && (this->sigma() == g.sigma()) && (this->effective() == g.effective()) && (this->runs() == g.runs()) && (this->bidirectional() == g.bidirectional());
+                std::cout << std::boolalpha << "Precheck passed? " << equal << std::endl;
+                assert(equal);
                 equal = equal && this->verifyBWT(g);
+                assert(equal);
+                std::cout << std::boolalpha << "BWT passed? " << equal << std::endl;
                 equal = equal && this->verifyLF(g);
+                assert(equal);
+                std::cout << std::boolalpha << "LF passed? " << equal << std::endl;
                 equal = equal && (!this->bidirectional() || this->verifyInverseLF(g));
+                assert(equal);
+                std::cout << std::boolalpha << "inverseLF passed? " << equal << std::endl;
                 return equal;
             }
 
@@ -440,15 +457,8 @@ namespace lf_gbwt{
                     bool nodeEqual = this->toNode(i) == g.toNode(i);
                     gbwt::CompressedRecord rec = g.record(g.toNode(i));
                     nodeEqual = nodeEqual && this->nodeSize(this->toNode(i)) == rec.size();
-                    if (ind.first) {
-                        for (gbwt::size_type j = 0; nodeEqual && j < this->nodeSize(this->toNode(i)); ++j)
-                            nodeEqual = nodeEqual && rec[j] == this->toNode(this->smallRecords.bwtAt(ind.second, j));
-                    }
-                    else {
-                        const CompressedRecord &lfrec = this->largeRecords[ind.second];
-                        for (gbwt::size_type j = 0; nodeEqual && j < rec.size(); ++j)
-                            nodeEqual = nodeEqual && rec[j] == this->toNode(lfrec[j]);
-                    }
+                    for (gbwt::size_type j = 0; nodeEqual && j < rec.size(); ++j)
+                        nodeEqual = nodeEqual && rec[j] == this->bwt(this->toNode(i), j);
                     #pragma omp critical 
                     {
                        equal = equal && nodeEqual;
@@ -602,6 +612,7 @@ namespace lf_gbwt{
 
         written_bytes += sdsl::serialize(this->maxOutdegree, out, child, "maxOutdegree");
         written_bytes += sdsl::serialize(this->records, out, child, "records");
+        written_bytes += sdsl::serialize(this->effective, out, child, "effective");
         written_bytes += sdsl::serialize(this->outDegreePrefixSum, out, child, "outDegreePrefixSum");
         written_bytes += sdsl::serialize(this->emptyRecords, out, child, "emptyRecords");
         written_bytes += sdsl::serialize(this->prefixSum, out, child, "prefixSum");
@@ -619,6 +630,7 @@ namespace lf_gbwt{
     void SmallRecordArray::load(std::istream& in) {
         sdsl::load(this->maxOutdegree, in);
         sdsl::load(this->records, in);
+        sdsl::load(this->effective, in);
         sdsl::load(this->outDegreePrefixSum, in);
         sdsl::load(this->emptyRecords, in);
         sdsl::load(this->prefixSum, in);
@@ -676,6 +688,7 @@ namespace lf_gbwt{
         assert(runEnd->second == end->second);
         size_type concRuns = runEnd->first - runBeg->first;
         //check if this has an edge to the endmarker
+        assert(hasEdge(node, gbwt::ENDMARKER) == alphabet[pos.second*effective]);
         if (!alphabet[pos.second*effective])
             return {concRuns, concRuns};
         //std::cout << "This node has an edge to the endmarker" << std::endl;
@@ -1083,6 +1096,32 @@ namespace lf_gbwt{
         }
         this->largeRecords = bwt;
 
+        //limit is random number, roughly 50% chance less than maxOutdegree, if it is uniformly distributed
+        //between 1 and maxOutdegree
+        std::random_device rd;
+        size_type limit = std::uniform_int_distribution<>(1, 2*maxOutdegreeFound)(rd);
+        if(gbwt::Verbosity::level >= gbwt::Verbosity::BASIC)
+        {
+            std::cerr << "lf_GBWT::GBWT::GBWT(): limit for maxOutdegree of smallRecords: " << limit << "." << std::endl;
+        }
+
+        auto buildSD = [] (sdsl::sd_vector<>& toBuild, const std::vector<size_type>& data, const size_type size, const size_type setBits) {
+            //assumes data sorted
+            //assert(std::is_sorted(data.begin(), data.end());
+            assert(size >= setBits);
+            assert(setBits == data.size());
+            sdsl::sd_vector_builder builder(size, setBits);
+            for (const size_type& x : data)
+                builder.set(x);
+            toBuild = sdsl::sd_vector<>(builder);
+        };
+        auto buildIntVec = [] (sdsl::int_vector<0>& toBuild, const std::vector<size_type>& data) {
+            toBuild.resize(data.size());
+            for (size_type i = 0; i < data.size(); ++i)
+                toBuild[i] = data[i];
+            sdsl::util::bit_compress(toBuild);
+        };
+
         SmallRecordArray tempSmallRecords;
         sdsl::sd_vector<> tempIsSmall;
         std::vector<CompressedRecord> tempLargeRecords;
@@ -1092,6 +1131,7 @@ namespace lf_gbwt{
             if (outdegreeCounts.count(nextOutdegree) == 0)
                 continue;
             double thisOutdegreeStart = gbwt::readTimer();
+            std::vector<size_type> tempIsSmallAssist;
             if(gbwt::Verbosity::level >= gbwt::Verbosity::BASIC)
             {
                 std::cerr << "lf_GBWT::GBWT::GBWT(): Computing if nodes with outdegree " << nextOutdegree << " should be stored in the smallRecordArray or in largeRecords."
@@ -1103,6 +1143,11 @@ namespace lf_gbwt{
                 //no need to check emptyRecords array (it will not be initialized correctly)
                 tempSmallRecords.maxOutdegree = 1;
                 tempSmallRecords.records = std::get<1>(outdegreeCounts[nextOutdegree]);
+                for (size_type i = 0; i < this->effective(); ++i)
+                    if (bwt[i].outdegree() != 0)
+                        tempLargeRecords.push_back(bwt[i]);
+                    else
+                        tempIsSmallAssist.push_back(i);
             }
             else {
                 //build smallRecordArray tempSmallRecords with maxOutdegree nextOutdegree+1
@@ -1113,7 +1158,7 @@ namespace lf_gbwt{
                 std::vector<size_type> outdegreePrefixSumAssist, alphabetAssist,
                     emptyRecordsAssist, lengthPrefixSumAssist, outgoingAssist,
                     firstAssist, firstByAlphabetAssist, alphabetByRunAssist,
-                    firstByAlphCompAssist, tempIsSmallAssist;
+                    firstByAlphCompAssist;
                 for (size_type i = 0; i < this->effective(); ++i) {
                     const CompressedRecord& rec = bwt[i];
                     if (rec.outdegree() >= tempSmallRecords.maxOutdegree) {
@@ -1169,23 +1214,6 @@ namespace lf_gbwt{
                 tempSmallRecords.effective = this->effective();
 
                 //build all structures using assist vectors
-                auto buildSD = [] (sdsl::sd_vector<>& toBuild, const std::vector<size_type>& data, const size_type size, const size_type setBits) {
-                    //assumes data sorted
-                    //assert(std::is_sorted(data.begin(), data.end());
-                    assert(size >= setBits);
-                    assert(setBits == data.size());
-                    sdsl::sd_vector_builder builder(size, setBits);
-                    for (const size_type& x : data)
-                        builder.set(x);
-                    toBuild = sdsl::sd_vector<>(builder);
-                };
-                auto buildIntVec = [] (sdsl::int_vector<0>& toBuild, const std::vector<size_type>& data) {
-                    toBuild.resize(data.size());
-                    for (size_type i = 0; i < data.size(); ++i)
-                        toBuild[i] = data[i];
-                    sdsl::util::bit_compress(toBuild);
-                };
-                buildSD(tempIsSmall, tempIsSmallAssist, this->effective(), tempIsSmallAssist.size());
                 buildSD(tempSmallRecords.outDegreePrefixSum, outdegreePrefixSumAssist, prevOutdegreePrefixSum, nonemptyRecordNum);
                 buildSD(tempSmallRecords.emptyRecords, emptyRecordsAssist, recordNum, recordNum - nonemptyRecordNum);
                 buildSD(tempSmallRecords.prefixSum, lengthPrefixSumAssist, prevLengthPrefixSum, nonemptyRecordNum);
@@ -1196,6 +1224,7 @@ namespace lf_gbwt{
                 buildSD(tempSmallRecords.alphabet, alphabetAssist, this->effective()*this->effective(), prevOutdegreePrefixSum);
                 buildIntVec(tempSmallRecords.alphabetByRun, alphabetByRunAssist);
             }
+            buildSD(tempIsSmall, tempIsSmallAssist, this->effective(), tempIsSmallAssist.size());
 
             size_type prevIsSmallSize = sdsl::size_in_bytes(this->isSmall),
                       prevSmallRecordsSize = sdsl::size_in_bytes(this->smallRecords),
@@ -1211,10 +1240,10 @@ namespace lf_gbwt{
                 std::cerr << "lf_GBWT::GBWT::GBWT(): Finished splitting nodes in " << gbwt::readTimer() - thisOutdegreeStart << " seconds. There are " << tempIsSmall.ones() << " small Records and " << tempIsSmall.size() - tempIsSmall.ones() << " large records."  << std::endl
                     << "lf_GBWT::GBWT::GBWT(): Previously, the three structures (isSmall, smallRecords, largeRecords) took " << prevSize << " bytes in total, respectively ( " << prevIsSmallSize << ", " << prevSmallRecordsSize << ", " << prevLargeRecordsSize << ")." << std::endl
                     << "lf_GBWT::GBWT::GBWT(): Now, the new structures take                                                " << tempSize << " bytes in total, respectively ( " << tempIsSmallSize << ", " << tempSmallRecordsSize << ", " << tempLargeRecordsSize << ")." << std::endl;
-                assert(tempIsSmall.size() - tempIsSmall.ones() == tempLargeRecords.size());
+                assert(nextOutdegree == 0 || tempIsSmall.size() - tempIsSmall.ones() == tempLargeRecords.size());
             }
 
-            if (tempSize >= prevSize) {
+            if (nextOutdegree >= limit || tempSize >= prevSize) {
                 break;
             }
 
@@ -1233,6 +1262,7 @@ namespace lf_gbwt{
             double smallSeconds = gbwt::readTimer() - smallRecordsStart;
             std::cerr << "lf_GBWT::GBWT::GBWT(): Computed small and large record partition in " << smallSeconds << " seconds" << std::endl;
             std::cerr << "lf_GBWT::GBWT::GBWT(): There are " << isSmall.ones() << " small Records and " << isSmall.size() - isSmall.ones() << " large records." << std::endl;
+            std::cerr << "lf_GBWT::GBWT::GBWT(): Small records are records with outdegree < " << this->smallRecords.maxOutdegree << " and large records are all the others." << std::endl;
             assert(largeRecords.size() == isSmall.size() - isSmall.ones());
 
             double seconds = gbwt::readTimer() - start;
@@ -1273,16 +1303,9 @@ namespace lf_gbwt{
     std::pair<gbwt::size_type, gbwt::size_type> GBWT::runs() const {
         std::pair<size_type, size_type> result(0,0);
         //std::cout << "In GBWT::runs()" << std::endl;
-        for (const CompressedRecord& rec: this->largeRecords) {
-            //std::cout << "Outputting Large record" << std::endl;
-            std::pair<size_type, size_type> temp = rec.runs();
+        for (size_type i = 0; i < this->effective(); ++i) {
+            std::pair<size_type, size_type> temp = this->runs(this->toNode(i));
             result.first  += temp.first;
-            result.second += temp.second;
-        }
-        for (size_type i = 0; i < isSmall.ones(); ++i) {
-            //std::cout << "Outputting small record" << std::endl;
-            std::pair<size_type, size_type> temp = this->smallRecords.runs(i);
-            result.first += temp.first;
             result.second += temp.second;
         }
         //std::cout << "Leaving GBWT::runs()" << std::endl;

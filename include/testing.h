@@ -38,6 +38,7 @@ SOFTWARE.
 #include<cmath>
 #include<setMaximalMatchQuery.h>
 #include<longMatchQuery.h>
+#include<cstdio>
 
 //------------------------------------------------------------------------------
 //Comparing matches
@@ -169,11 +170,37 @@ bool longMatchQueriesEqual(const gbwt::GBWT & x, const gbwt::FastLocate & r, con
     return overall;
 }
 
+template<class T, class U>
+bool verifySerializeLoad(const std::string& tempFilename, const T& originalStructure, const U& compare) {
+    std::ofstream out(tempFilename);
+    if (!out.is_open()) {
+        std::cerr << "File '" << tempFilename << "' failed to open for writing!\n";
+        assert(false);
+        return false;
+    }
+    originalStructure.serialize(out);
+    out.close();
+    std::ifstream in(tempFilename);
+    if (!in.is_open()) { 
+        std::cerr << "File '" << tempFilename << "' failed to open for reading!\n";
+        assert(false);
+        return false;
+    }
+    T newStructure;
+    newStructure.load(in);
+    in.close();
+    return newStructure.verify(compare);
+}
+    
+
 //Testing Queries through incremental GBWT building and querying
 bool testIncremental(gbwt::GBWT & x, gbwt::FastLocate & r, FastLCP & l, lf_gbwt::GBWT & lfg, CompText & ct, unsigned n){
     bool overall = true, result, longResult, indexes = true;
+    std::string tempFilename = std::tmpnam(nullptr);
+    std::cout << "tempFilename: " << tempFilename << std::endl;
     if (!l.verifySuff()) { indexes = false; std::cout << "FastLCP not good!" << std::endl; }
     if (!lfg.verify(x)) {indexes = false; std::cout << "LF GBWT not good!" << std::endl; }
+    if (!verifySerializeLoad(tempFilename, lfg, x)) {indexes = false; std::cout << "LF GBWT serialize/load not good!" << std::endl; }
     if (!ct.verifyText()) { indexes = false; std::cout << "CompText not good!" << std::endl; }
 
     std::random_device rd;
@@ -203,6 +230,7 @@ bool testIncremental(gbwt::GBWT & x, gbwt::FastLocate & r, FastLCP & l, lf_gbwt:
             if (!l.verifySuff()) { indexes = false; std::cout << "FastLCP not good!" << std::endl; }
             lfg = lf_gbwt::GBWT(x);
             if (!lfg.verify(x)) {indexes = false; std::cout << "LF GBWT not good!" << std::endl; }
+            if (!verifySerializeLoad(tempFilename, lfg, x)) {indexes = false; std::cout << "LF GBWT serialize/load not good!" << std::endl; }
             ct.buildFullMem(l);
             if (!ct.verifyText()) { indexes = false; std::cout << "CompText not good!" << std::endl; }
         }
