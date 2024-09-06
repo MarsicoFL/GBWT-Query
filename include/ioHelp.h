@@ -182,8 +182,10 @@ void printGBWTandRindex(std::ostream& out, const gbwt::GBWT & g, const gbwt::Fas
         {
             auto ind = lfg.isSmallAndIndex(i);
             if (ind.first) {
-                gbwt::size_type lengthPrefixSum = lfg.smallRecords.prefixSum.select_iter(ind.second + 1)->second;
-                gbwt::size_type nextStart = lfg.smallRecords.prefixSum.select_iter(ind.second + 2)->second;
+                auto t = lfg.smallRecords.emptyAndNonEmptyIndex(ind.second);
+                if (t.first) continue;
+                gbwt::size_type lengthPrefixSum = lfg.smallRecords.prefixSum.select_iter(t.second + 1)->second;
+                gbwt::size_type nextStart = lfg.smallRecords.prefixSum.select_iter(t.second + 2)->second;
                 auto start = lfg.smallRecords.first.successor(lengthPrefixSum);
                 gbwt::CompressedRecordIterator it(a);
                 for (auto next = start; start->second < nextStart && !it.end(); ++it, ++start) {
@@ -214,8 +216,10 @@ void printGBWTandRindex(std::ostream& out, const gbwt::GBWT & g, const gbwt::Fas
         out << '\n' << setw(labelWidth) << "Out:";
         auto ind = lfg.isSmallAndIndex(i);
         if (ind.first) {
-            gbwt::size_type outgoingPrefixSum = lfg.smallRecords.outDegreePrefixSum.select_iter(ind.second + 1)->second;
-            gbwt::size_type outgoingSize = lfg.smallRecords.outDegreePrefixSum.select_iter(ind.second + 2)->second - outgoingPrefixSum;
+            auto t = lfg.smallRecords.emptyAndNonEmptyIndex(ind.second);
+            if (t.first) continue;
+            gbwt::size_type outgoingPrefixSum = lfg.smallRecords.outDegreePrefixSum.select_iter(t.second + 1)->second;
+            gbwt::size_type outgoingSize = lfg.smallRecords.outDegreePrefixSum.select_iter(t.second + 2)->second - outgoingPrefixSum;
             assert(lfg.effective() == g.effective() && lfg.effective() == lfg.smallRecords.effective);
             for (unsigned j = 0; j < outgoing.size(); ++j){
                 out << '(' << setw(width) << areEqual(outgoing[j].first, lfg.toNode(lfg.smallRecords.alphabet.select_iter(outgoingPrefixSum + j + 1)->second - ind.second*lfg.smallRecords.effective))

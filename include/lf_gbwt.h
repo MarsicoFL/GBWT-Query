@@ -879,24 +879,29 @@ namespace lf_gbwt{
                 return x;
             return gbwt::Node::reverse(this->toNode(x));
         };
+        if (this->toComp(revFrom) >= this->effective())
+            std::cout << "In predecessorAt, revFrom " << revFrom << " i " << i << " toComp(revFrom) " << this->toComp(revFrom) << " effective() " << this->effective() << std::endl;
         auto ind = this->isSmallAndIndex(this->toComp(revFrom));
         if (i >= this->nodeSize(revFrom))
             return gbwt::invalid_node();
 
         if (ind.first) {
-            size_type prefixLength = this->smallRecords.prefixSum.select_iter(ind.second + 1)->second;
+            auto t = smallRecords.emptyAndNonEmptyIndex(ind.second);
+            if (t.first)
+                return gbwt::invalid_node();
+            size_type prefixLength = this->smallRecords.prefixSum.select_iter(t.second + 1)->second;
             size_type predoutrank = (this->smallRecords.firstByAlphabet.select_iter(
                     this->smallRecords.firstByAlphComp.predecessor(prefixLength + i)->first + 1
                     )->second - (prefixLength*this->smallRecords.maxOutdegree))/this->smallRecords.size(ind.second);
 
             //check if before predoutrank is its reverse
             auto alphIter = this->smallRecords.alphabet.select_iter(
-                    this->smallRecords.alphabet.successor(ind.second * this->effective())->first + 1 + predoutrank
+                    this->smallRecords.alphabet.successor(t.second * this->effective())->first + 1 + predoutrank
                     );
             if (predoutrank > 0) {
                 auto prevAlphIter = alphIter;
                 --prevAlphIter;
-                if (this->toNode(prevAlphIter->second - ind.second * this->effective()) == revNode(alphIter->second - ind.second * this->effective())) {
+                if (this->toNode(prevAlphIter->second - t.second * this->effective()) == revNode(alphIter->second - t.second * this->effective())) {
                     size_type beforePrevAlph = this->smallRecords.firstByAlphComp.select_iter(1+
                             this->smallRecords.firstByAlphabet.successor((predoutrank-1)*this->smallRecords.size(ind.second) + prefixLength*this->smallRecords.maxOutdegree)->first
                             )->second;
@@ -910,16 +915,16 @@ namespace lf_gbwt{
                     prevAlphSize -= beforePrevAlph;
                     beforePrevAlph -= prefixLength;
                     if (i < beforePrevAlph + AlphSize)
-                        return revNode(alphIter->second - ind.second*this->effective());
-                    return this->toNode(alphIter->second - ind.second*this->effective());
+                        return revNode(alphIter->second - t.second*this->effective());
+                    return this->toNode(alphIter->second - t.second*this->effective());
                 }
             }
             
             //check if after predoutrank is its reverse
             auto afterAlphIter = alphIter;
             ++afterAlphIter;
-            if (afterAlphIter->second/this->effective() == ind.second) {
-                if (this->toNode(afterAlphIter->second - ind.second * this->effective()) == revNode(alphIter->second - ind.second * this->effective())) {
+            if (afterAlphIter->second/this->effective() == t.second) {
+                if (this->toNode(afterAlphIter->second - t.second * this->effective()) == revNode(alphIter->second - t.second * this->effective())) {
                     size_type beforeAlph    = this->smallRecords.firstByAlphComp.select_iter(1+
                             this->smallRecords.firstByAlphabet.successor((predoutrank)  *this->smallRecords.size(ind.second) + prefixLength*this->smallRecords.maxOutdegree)->first
                             )->second;
@@ -933,13 +938,13 @@ namespace lf_gbwt{
                     AlphSize -= beforeAlph;
                     beforeAlph -= prefixLength;
                     if (i < beforeAlph + AfterAlphSize)
-                        return revNode(afterAlphIter->second - ind.second*this->effective());
-                    return this->toNode(afterAlphIter->second - ind.second*this->effective());
+                        return revNode(afterAlphIter->second - t.second*this->effective());
+                    return this->toNode(afterAlphIter->second - t.second*this->effective());
 
                 }
             }
 
-            return revNode(alphIter->second - ind.second*this->effective());
+            return revNode(alphIter->second - t.second*this->effective());
         }
         else {
             const CompressedRecord & rev = this->largeRecords[ind.second];
@@ -1336,6 +1341,8 @@ namespace lf_gbwt{
         if (pred == gbwt::invalid_node()) { return gbwt::invalid_edge(); }
 
         //std::cout << "Finished finding predecessor of from, pred: " << pred << std::endl;
+        if (this->toComp(pred) >= this->effective())
+            std::cout << "In inverseLF, from " << from << " i " << i << " pred " << pred << " toComp(pred) " << this->toComp(pred) << " effective() " << this->effective() << std::endl;
 
         //determine the offset 
         auto ind = this->isSmallAndIndex(this->toComp(pred));
