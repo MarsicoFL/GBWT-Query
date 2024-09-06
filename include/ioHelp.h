@@ -116,10 +116,12 @@ void printGBWTandRindex(std::ostream& out, const gbwt::GBWT & g, const gbwt::Fas
         suffixB.resize(size);
         LCPA.resize(size);
         LCPB.resize(size);
-        suffixA[0] = r.locateFirst(node);
-        suffixB.back() = l.locateLast(node);
-        LCPA[0] = l.LCP(suffixA[0]);
-        LCPB.back() = l.LCP(suffixB.back());
+        if (size) {
+            suffixA[0] = r.locateFirst(node);
+            suffixB.back() = l.locateLast(node);
+            LCPA[0] = l.LCP(suffixA[0]);
+            LCPB.back() = l.LCP(suffixB.back());
+        }
 
 
         for (unsigned j = 1; j < size; ++j){
@@ -183,17 +185,18 @@ void printGBWTandRindex(std::ostream& out, const gbwt::GBWT & g, const gbwt::Fas
             auto ind = lfg.isSmallAndIndex(i);
             if (ind.first) {
                 auto t = lfg.smallRecords.emptyAndNonEmptyIndex(ind.second);
-                if (t.first) continue;
-                gbwt::size_type lengthPrefixSum = lfg.smallRecords.prefixSum.select_iter(t.second + 1)->second;
-                gbwt::size_type nextStart = lfg.smallRecords.prefixSum.select_iter(t.second + 2)->second;
-                auto start = lfg.smallRecords.first.successor(lengthPrefixSum);
-                gbwt::CompressedRecordIterator it(a);
-                for (auto next = start; start->second < nextStart && !it.end(); ++it, ++start) {
-                    ++next;
-                    out << '(' << setw(width) << areEqual(it->first, lfg.smallRecords.alphabetByRun[start->first])
-                        << ',' << setw(width) << areEqual(it->second, next->second - start->second) << "),";
+                if (!t.first) {
+                    gbwt::size_type lengthPrefixSum = lfg.smallRecords.prefixSum.select_iter(t.second + 1)->second;
+                    gbwt::size_type nextStart = lfg.smallRecords.prefixSum.select_iter(t.second + 2)->second;
+                    auto start = lfg.smallRecords.first.successor(lengthPrefixSum);
+                    gbwt::CompressedRecordIterator it(a);
+                    for (auto next = start; start->second < nextStart && !it.end(); ++it, ++start) {
+                        ++next;
+                        out << '(' << setw(width) << areEqual(it->first, lfg.smallRecords.alphabetByRun[start->first])
+                            << ',' << setw(width) << areEqual(it->second, next->second - start->second) << "),";
+                    }
+                    out << " Finished runs: " << areEqual((it.end()), start->second == nextStart);
                 }
-                out << " Finished runs: " << areEqual((it.end()), start->second == nextStart);
             }
             else {
                 const lf_gbwt::CompressedRecord & lfg_a = lfg.largeRecords[ind.second];
@@ -217,13 +220,14 @@ void printGBWTandRindex(std::ostream& out, const gbwt::GBWT & g, const gbwt::Fas
         auto ind = lfg.isSmallAndIndex(i);
         if (ind.first) {
             auto t = lfg.smallRecords.emptyAndNonEmptyIndex(ind.second);
-            if (t.first) continue;
-            gbwt::size_type outgoingPrefixSum = lfg.smallRecords.outDegreePrefixSum.select_iter(t.second + 1)->second;
-            gbwt::size_type outgoingSize = lfg.smallRecords.outDegreePrefixSum.select_iter(t.second + 2)->second - outgoingPrefixSum;
-            assert(lfg.effective() == g.effective() && lfg.effective() == lfg.smallRecords.effective);
-            for (unsigned j = 0; j < outgoing.size(); ++j){
-                out << '(' << setw(width) << areEqual(outgoing[j].first, lfg.toNode(lfg.smallRecords.alphabet.select_iter(outgoingPrefixSum + j + 1)->second - ind.second*lfg.smallRecords.effective))
-                    << ',' << setw(width) << areEqual(outgoing[j].second, lfg.smallRecords.outgoing[j + outgoingPrefixSum]) << "),";
+            if (!t.first) {
+                gbwt::size_type outgoingPrefixSum = lfg.smallRecords.outDegreePrefixSum.select_iter(t.second + 1)->second;
+                gbwt::size_type outgoingSize = lfg.smallRecords.outDegreePrefixSum.select_iter(t.second + 2)->second - outgoingPrefixSum;
+                assert(lfg.effective() == g.effective() && lfg.effective() == lfg.smallRecords.effective);
+                for (unsigned j = 0; j < outgoing.size(); ++j){
+                    out << '(' << setw(width) << areEqual(outgoing[j].first, lfg.toNode(lfg.smallRecords.alphabet.select_iter(outgoingPrefixSum + j + 1)->second - t.second*lfg.smallRecords.effective))
+                        << ',' << setw(width) << areEqual(outgoing[j].second, lfg.smallRecords.outgoing[j + outgoingPrefixSum]) << "),";
+                }
             }
         }
         else {

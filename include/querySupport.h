@@ -224,6 +224,8 @@ virtualInsertionWithSuffLFGBWT(const lf_gbwt::GBWT & lfg, const gbwt::FastLocate
             gbwt::comp_type compTo= lfg.toComp(to);
             //std::cout << "compTo: " << compTo << " ind: (" << ind.first << ", " << ind.second << ")" << std::endl;
             if (ind.first) {
+                auto t = lfg.smallRecords.emptyAndNonEmptyIndex(ind.second);
+                assert(!t.first); //since for every node in the query, there must be a path that contains it in the GBWT
                 gbwt::size_type outrank = lfg.smallRecords.edgeTo(ind.second, compTo),
                     newPos = lfg.smallRecords.LF(ind.second, prevPos, compTo);
                 //std::cout << "outrank " << outrank << " newPos " << newPos << std::endl;
@@ -235,7 +237,7 @@ virtualInsertionWithSuffLFGBWT(const lf_gbwt::GBWT & lfg, const gbwt::FastLocate
                     return {newPos, prevSuff - 1};
                 //std::cout << "prevPos bwt not equal to compTo" << std::endl;
 
-                gbwt::size_type prefixLength = lfg.smallRecords.prefixSum.select_iter(ind.second + 1)->second;
+                gbwt::size_type prefixLength = lfg.smallRecords.prefixSum.select_iter(t.second + 1)->second;
                 auto nextRun = lfg.smallRecords.firstByAlphabet.successor(prefixLength*lfg.smallRecords.maxOutdegree + outrank* lfg.smallRecords.size(ind.second) + prevPos);
                 if (nextRun->second - prefixLength*lfg.smallRecords.maxOutdegree < (outrank+1)*lfg.smallRecords.size(ind.second)) {
                     //successor run exists
@@ -687,6 +689,8 @@ AddLongMatchesLFGBWT(const lf_gbwt::GBWT& lfg, const gbwt::FastLocate& r, const 
 
     gbwt::comp_type compTo = lfg.toComp(Qs[currQsInd-1]);
     auto ind = lfg.isSmallAndIndex(lfg.toComp(Qs[currQsInd]));
+    auto t = (ind.first)?lfg.smallRecords.emptyAndNonEmptyIndex(ind.second) : std::pair<bool, gbwt::size_type>{lfg.largeRecords[ind.second].size() == 0, ind.second};
+    assert(!t.first); //since for every node in the query, there must be a path in the GBWT that contains it
     //const lf_gbwt::CompressedRecord& rec = lfg.record(Qs[currQsInd]);
 
     gbwt::range_type newBlock = gbwt::Range::empty_range();
@@ -702,7 +706,7 @@ AddLongMatchesLFGBWT(const lf_gbwt::GBWT& lfg, const gbwt::FastLocate& r, const 
         return {gbwt::Range::empty_range(), gbwt::invalid_offset(), gbwt::invalid_offset()};
     }
 
-    gbwt::size_type prefixSum = (ind.first)? lfg.smallRecords.prefixSum.select_iter(ind.second + 1)->second : 0;
+    gbwt::size_type prefixSum = (ind.first)? lfg.smallRecords.prefixSum.select_iter(t.second + 1)->second : 0;
     sdsl::sd_vector<>::one_iterator start = ((ind.first)? lfg.smallRecords.first.predecessor(prefixSum + block.first) : lfg.largeRecords[ind.second].first.predecessor(block.first)), 
         end = ((ind.first)? lfg.smallRecords.first.successor(prefixSum + block.second + 1) : lfg.largeRecords[ind.second].first.successor(block.second + 1));
     //std::cout << "start->second - prefixSum" << start->second - prefixSum 
