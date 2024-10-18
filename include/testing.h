@@ -207,9 +207,9 @@ bool testIncremental(gbwt::GBWT & x, gbwt::FastLocate & r, FastLCP & l, lf_gbwt:
     if (!ct.verifyText()) { indexes = false; std::cout << "CompText not good!" << std::endl; }
 
     std::random_device rd;
-    //unsigned seed = rd();
+    unsigned seed = rd();
     //unsigned seed = 3126255437;
-    unsigned seed = 1263057416;
+    //unsigned seed = 1263057416;
     //unsigned seed = 0x54459889;
     std::cout << "seed for testIncremental: " << seed << "\n";
     std::mt19937_64 gen(seed);

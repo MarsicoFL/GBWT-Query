@@ -79,7 +79,8 @@ int main(int argc, char* argv[]){
 
     std::cout << "Finished construction of LF GBWT" << std::endl;
     
-    CompText ct(l);
+    CompText ct;//(l);
+    ct.buildFullMemPruned(l);
 
     std::cout << "Finished construction of Compressed Text" << std::endl;
 
