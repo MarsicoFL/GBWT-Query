@@ -425,26 +425,26 @@ namespace lf_gbwt{
             }*/
 
             bool verify(const gbwt::GBWT& g) {
-                assert(this->size() == g.size());
-                assert(this->sequences() == g.sequences());
-                assert(this->sigma() == g.sigma());
-                assert(this->effective() == g.effective());
+                //assert(this->size() == g.size());
+                //assert(this->sequences() == g.sequences());
+                //assert(this->sigma() == g.sigma());
+                //assert(this->effective() == g.effective());
                 //std::cout << "this runs " << this->runs().first << " g runs " << g.runs().first << std::endl;
                 //std::cout << "this runs " << this->runs().second<< " g runs " << g.runs().second<< std::endl;
-                assert(this->runs() == g.runs());
-                assert(this->bidirectional() == g.bidirectional());
+                //assert(this->runs() == g.runs());
+                //assert(this->bidirectional() == g.bidirectional());
                 bool equal = (this->size() == g.size()) && (this->sequences() == g.sequences()) && (this->sigma() == g.sigma()) && (this->effective() == g.effective()) && (this->runs() == g.runs()) && (this->bidirectional() == g.bidirectional());
-                std::cout << std::boolalpha << "Precheck passed? " << equal << std::endl;
-                assert(equal);
+                //std::cout << std::boolalpha << "Precheck passed? " << equal << std::endl;
+                //assert(equal);
                 equal = equal && this->verifyBWT(g);
-                assert(equal);
-                std::cout << std::boolalpha << "BWT passed? " << equal << std::endl;
+                //assert(equal);
+                //std::cout << std::boolalpha << "BWT passed? " << equal << std::endl;
                 equal = equal && this->verifyLF(g);
-                assert(equal);
-                std::cout << std::boolalpha << "LF passed? " << equal << std::endl;
+                //assert(equal);
+                //std::cout << std::boolalpha << "LF passed? " << equal << std::endl;
                 equal = equal && (!this->bidirectional() || this->verifyInverseLF(g));
-                assert(equal);
-                std::cout << std::boolalpha << "inverseLF passed? " << equal << std::endl;
+                //assert(equal);
+                //std::cout << std::boolalpha << "inverseLF passed? " << equal << std::endl;
                 return equal;
             }
 
@@ -1104,7 +1104,8 @@ namespace lf_gbwt{
         //limit is random number, roughly 50% chance less than maxOutdegree, if it is uniformly distributed
         //between 1 and maxOutdegree
         std::random_device rd;
-        size_type limit = std::uniform_int_distribution<>(1, 2*maxOutdegreeFound)(rd);
+        //size_type limit = std::uniform_int_distribution<>(1, 2*maxOutdegreeFound)(rd);
+        size_type limit = maxOutdegreeFound + 1;
         if(gbwt::Verbosity::level >= gbwt::Verbosity::BASIC)
         {
             std::cerr << "lf_GBWT::GBWT::GBWT(): limit for maxOutdegree of smallRecords: " << limit << "." << std::endl;
