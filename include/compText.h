@@ -1092,10 +1092,12 @@ void CompText::buildFullMemPruned(const FastLCP & l) {
                 size_type start = ithStart(blockInd);
                 size_type end = ithStart(blockInd+1);
                 
+                /*
                 if (blockInd%10000 == 0) {
                     std::cout << "On run " << blockInd << " after " << gbwt::readTimer() - runStart << " seconds" << std::endl;
                     runStart = gbwt::readTimer();
                 }
+                */
                 //assign block blockInd to a run, block blockInd corresponds to [blockInd*s_0, (blockInd+1)*s_0) = [start, end)
                 //where s_0 is the smallest power of 2 larger than or equal to \ceiling(n/r) (and is the block size of the first level of the tree
                 //where n is the total length and r is the number of GBWT logical runs
