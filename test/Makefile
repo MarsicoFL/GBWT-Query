@@ -12,7 +12,7 @@ headers = $(indexHeaders) $(utilHeaders) $(queryHeaders)
 
 LDFLAGS = -L$(libDir)/ 
 LDLIBS = -lgbwt -lsdsl 
-WARNINGFLAGS = -Wall -Weffc++ -Wextra -Wconversion -Wsign-conversion
+WARNINGFLAGS = #-Wall -Weffc++ -Wextra -Wconversion -Wsign-conversion
 CXXFLAGS = -std=c++14 -fopenmp -O3 -I$(includeDir) -I$(libIncDir) $(WARNINGFLAGS)
 
 
@@ -21,6 +21,10 @@ toTest = bi_fig1 bi_fig1_repeated128
 testSizes = 0 10 100
 toRemove = 2
 Llength = 4
+
+1000G_base = ../toyData/indexes/1000G/chr21
+1000G_haplotypes_remove = 100
+1000G_L_lengths = 100 500 1000 5000 7500 10000 20000 200000
 
 .PHONY: all clean rebuild test
 
@@ -32,6 +36,24 @@ clean:
 rebuild: clean all
 
 test: testverify testGenerateandTest
+
+
+
+1000GGenerate: generateIndices
+	echo ./generateIndices $(1000G_base) $(1000G_haplotypes_remove)
+	./generateIndices $(1000G_base) $(1000G_haplotypes_remove)
+	echo $(gbwtDir)/build_gbwt -l -R -s 1024 -o $(1000G_base)Trimmed_withDA $(1000G_base)Trimmed
+	$(gbwtDir)/build_gbwt -l -R -s 1024 -o $(1000G_base)Trimmed_withDA $(1000G_base)Trimmed
+
+1000GTest: doTest
+	for matchLLength in $(1000G_L_lengths);\
+	do\
+		echo ./doTest $(1000G_base)Trimmed $$matchLLength;\
+		./doTest $(1000G_base)Trimmed $$matchLLength;\
+	done
+
+
+
 
 testverify: verifyStructuresAndQueries
 	for base in $(toTest);\
