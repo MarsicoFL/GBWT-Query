@@ -199,7 +199,7 @@ int main(int argc, char* argv[]) {
     //build comp text
     start = gbwt::readTimer();
     CompText trimct;
-    trimct.buildFullMem(trimflcp);
+    trimct.buildFullMemPruned(trimflcp);
     std::cout << "Finished building new comp text in " << gbwt::readTimer() - start << " seconds." << std::endl;
     //writing comp text
     start = gbwt::readTimer();
