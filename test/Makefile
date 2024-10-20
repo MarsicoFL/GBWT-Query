@@ -13,7 +13,7 @@ headers = $(indexHeaders) $(utilHeaders) $(queryHeaders)
 LDFLAGS = -L$(libDir)/ 
 LDLIBS = -lgbwt -lsdsl 
 WARNINGFLAGS = #-Wall -Weffc++ -Wextra -Wconversion -Wsign-conversion
-CXXFLAGS = -std=c++14 -fopenmp -O3 -I$(includeDir) -I$(libIncDir) $(WARNINGFLAGS)
+CXXFLAGS = -DNDEBUG -std=c++14 -fopenmp -O3 -I$(includeDir) -I$(libIncDir) $(WARNINGFLAGS)
 
 
 dataDir = ../toyData/indexes
