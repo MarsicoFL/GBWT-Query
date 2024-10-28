@@ -1,22 +1,22 @@
 includeDir = ../include
 
-libDir = ../../lib
-libIncDir = ../../include
-gbwtDir = ~/GBWTQuery/gbwt/bin
-
+# libDir = ../../lib
+# libIncDir = ../../include
+gbwtDir = ../gbwt/bin
+SDSL_DIR=../sdsl-lite
 
 indexHeaders = $(includeDir)/fast_lcp.h $(includeDir)/lf_gbwt.h $(includeDir)/compText.h
 utilHeaders = $(includeDir)/testing.h $(includeDir)/ioHelp.h
 queryHeaders = $(includeDir)/querySupport.h $(includeDir)/setMaximalMatchQuery.h $(includeDir)/longMatchQuery.h
 headers = $(indexHeaders) $(utilHeaders) $(queryHeaders)
 
-LDFLAGS = -L$(libDir)/ 
-LDLIBS = -lgbwt -lsdsl 
-WARNINGFLAGS = #-Wall -Weffc++ -Wextra -Wconversion -Wsign-conversion
-PARALLELFLAGS = -fopenmp -pthread
-
 #####################################################################################################
 # Apple Clang support modified from GBWT Makefile, at https://github.com/jltsiren/gbwt
+include $(SDSL_DIR)/Make.helper
+
+libDir = LIB_DIR
+libIncDir = INC_DIR
+
 # Apple Clang does not support OpenMP directly, so we need special handling.
 ifeq ($(shell uname -s), Darwin)
     # The compiler complains about -fopenmp instead of missing input.
@@ -39,6 +39,11 @@ ifeq ($(shell uname -s), Darwin)
     endif
 endif
 #####################################################################################################
+
+LDFLAGS = -L$(libDir)/ 
+LDLIBS = -lgbwt -lsdsl 
+WARNINGFLAGS = #-Wall -Weffc++ -Wextra -Wconversion -Wsign-conversion
+PARALLELFLAGS = -fopenmp -pthread
 
 CXXFLAGS = -DNDEBUG -std=c++14 $(PARALLELFLAGS) -O3 -I$(includeDir) -I$(libIncDir) $(WARNINGFLAGS)
 
