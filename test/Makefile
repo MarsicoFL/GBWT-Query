@@ -3,7 +3,7 @@ includeDir = ../include
 # libDir = ../../lib
 # libIncDir = ../../include
 gbwtDir = ../gbwt/bin
-SDSL_DIR=../sdsl-lite
+SDSL_DIR= ../../sdsl-lite
 
 indexHeaders = $(includeDir)/fast_lcp.h $(includeDir)/lf_gbwt.h $(includeDir)/compText.h
 utilHeaders = $(includeDir)/testing.h $(includeDir)/ioHelp.h
