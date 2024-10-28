@@ -14,8 +14,8 @@ headers = $(indexHeaders) $(utilHeaders) $(queryHeaders)
 # Apple Clang support modified from GBWT Makefile, at https://github.com/jltsiren/gbwt
 include $(SDSL_DIR)/Make.helper
 
-libDir = LIB_DIR
-libIncDir = INC_DIR
+libDir = $(LIB_DIR)
+libIncDir = $(INC_DIR)
 
 # Apple Clang does not support OpenMP directly, so we need special handling.
 ifeq ($(shell uname -s), Darwin)
