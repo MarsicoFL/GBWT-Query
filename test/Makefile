@@ -13,7 +13,34 @@ headers = $(indexHeaders) $(utilHeaders) $(queryHeaders)
 LDFLAGS = -L$(libDir)/ 
 LDLIBS = -lgbwt -lsdsl 
 WARNINGFLAGS = #-Wall -Weffc++ -Wextra -Wconversion -Wsign-conversion
-CXXFLAGS = -DNDEBUG -std=c++14 -fopenmp -O3 -I$(includeDir) -I$(libIncDir) $(WARNINGFLAGS)
+PARALLELFLAGS = -fopenmp -pthread
+
+#####################################################################################################
+# Apple Clang support modified from GBWT Makefile, at https://github.com/jltsiren/gbwt
+# Apple Clang does not support OpenMP directly, so we need special handling.
+ifeq ($(shell uname -s), Darwin)
+    # The compiler complains about -fopenmp instead of missing input.
+    ifeq ($(strip $(shell $(MY_CXX) -fopenmp /dev/null -o/dev/null 2>&1 | grep fopenmp | wc -l)), 1)
+        # The compiler only needs to do the preprocessing.
+        PARALLELFLAGS = -Xpreprocessor -fopenmp -pthread
+
+        # If HOMEBREW_PREFIX is specified, libomp probably cannot be found automatically.
+        ifdef HOMEBREW_PREFIX
+            PARALLELFLAGS += -I$(HOMEBREW_PREFIX)/include
+            LDFLAGS += -L$(HOMEBREW_PREFIX)/lib
+        # Macports installs libomp to /opt/local/lib/libomp
+        else ifeq ($(shell if [ -d /opt/local/lib/libomp ]; then echo 1; else echo 0; fi), 1)
+            PARALLELFLAGS += -I/opt/local/include/libomp
+            LDFLAGS += -L/opt/local/lib/libomp
+        endif
+
+        # We also need to link it.
+        LDLIBS += -lomp
+    endif
+endif
+#####################################################################################################
+
+CXXFLAGS = -DNDEBUG -std=c++14 $(PARALLELFLAGS) -O3 -I$(includeDir) -I$(libIncDir) $(WARNINGFLAGS)
 
 
 dataDir = ../toyData/indexes
