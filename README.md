@@ -68,7 +68,7 @@ Running `make` in the [/test/](/test/) directory will compile binaries for each 
 ## Simple Compilation
 1. In an empty directory `mkdir GBWT_AND_QUERY; cd GBWT_AND_QUERY`
 2. Clone all repos.
-   *  `git clone https://github.com/jltsiren/gbwt/blob/0bfeb0723bdc71db075aacf99a77704769d56a55`
+   *  `git clone https://github.com/jltsiren/gbwt`
    *  `git clone https://github.com/ucfcbb/GBWT-Query`
    *  `git clone https://github.com/vgteam/sdsl-lite`
 3. Installation of prereqs locally
