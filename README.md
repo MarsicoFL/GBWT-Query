@@ -2,14 +2,14 @@
 
 Provides haplotype matching capabilities on the GBWT. Implements long match and set maximal match query on the GBWT. 
 
-Related paper: "On Haplotype Matching on the GBWT," by Ahsan Sanaullah, Seba Villalobos, Degui Zhi, and Shaojie Zhang. DOI: 
+Related paper: "Haplotype Matching with GBWT for Pangenome Graphs," by Ahsan Sanaullah, Seba Villalobos, Degui Zhi, and Shaojie Zhang. DOI: 
 
 Contact Author: Ahsan Sanaullah (ahsan.sanaullah@ucf.edu)
 
 # Implemented Indexes
 1. `FastLCP`: Augmentation of FastLocate of that adds the locatePrev and LCP computation capabilities.
 2. `lf_gbwt::GBWT`: Barebones GBWT that allows computation of LF in efficient worst case time complexity.
-3. `CompText`: Compressed Text Data structure. Implementation of the $O(r \log(\frac{n}{r}))$ space text access data structure by Gagie et al. ("Fully Functional Suffix Trees and Optimal Text Searching in BWT-Runs Bounded Space," https://doi.org/10.1145/3375890). Allows $O(\log(\frac{n}{r}) + l)$ time queries of l consecutive characters of the text. This implementation is modified to use less space (by a constant factor) and only allows point queries in $O(\log(\frac{n}{r}))$ time.
+3. `CompText`: Compressed Text Data structure. Implementation of the $O\left(r \log\left(\frac{n}{r}\right)\right)$ space text access data structure by Gagie et al. ("Fully Functional Suffix Trees and Optimal Text Searching in BWT-Runs Bounded Space," https://doi.org/10.1145/3375890). Allows $O\left(\log\left(\frac{n}{r}\right) + l\right)$ time queries of $l$ consecutive characters of the text. This implementation is modified to use less space and allows point queries in $O\left(\log\left(\frac{n}{r}\right)\right)$ time.
 
 # Implemented Haplotype Matching Algorithms
 1. Set Maximal Match Query: Given a query path-string $Q$, outputs all matches to a path-string $p$ in the GBWT, $(i,j,k)$, s.t. $Q[i,i+k) = p[j,j+k)$ and there does not exist any path-string $p'$ and index $j'$ in the GBWT s.t. $Q[i-1,i+k) = p'[j'-1, j'+k)$ or $Q[i,i+k+1) = p'[j', j'+k+1)$.
@@ -17,7 +17,7 @@ Contact Author: Ahsan Sanaullah (ahsan.sanaullah@ucf.edu)
 3. Long Match Query: Given a query path-string $Q$, outputs all matches to a path-string $p$ in the GBWT, $(i,j,k)$, s.t. $k \geq L$, $Q[i,i+k) = p[j,j+k)$, and $Q[i-1,i+k) \neq p[j-1, j+k)$ and $Q[i,i+k+1) \neq p[j,j+k+1)$.
 
 ## Haplotype Matching Algorithm Versions
-Each haplotype matching algorithm has various version implementations. Each version uses different indexes as input. Set Maximal Match Query has 6 numbered versions, Long Match Query has 4 (specifically, 2, 3, 4, and 2_4).The GBWT should contain no document array samples except for in version 0. There are also brute force versions for long and set maximal match query. Finally set maximal match query has a naive $O(|Q|^2t_{LF}+cs)$ time algorithm that requires just a GBWT (document array samples should be provided). Each numbered version uses the following indexes as input. 
+Each haplotype matching algorithm has various version implementations. Each version uses different indexes as input. Set Maximal Match Query has 6 numbered versions, Long Match Query has 4 (specifically, 2, 3, 4, and 2_4).The GBWT should contain no document array samples except for in version 0. There are also brute force versions for long and set maximal match query. Finally set maximal match query has a naive $O\left(\left\lvert Q\right\rvert^2t_{LF}+cs\right)$ time algorithm that requires just a GBWT (document array samples should be provided). Each numbered version uses the following indexes as input. 
 * 0: `GBWT`. Document array samples should be contained in the GBWT, otherwise this implementation run very slowly.
 * 1: `GBWT` and `FastLocate`.
 * 2: `GBWT`, `FastLocate`, and `FastLCP`.
@@ -26,11 +26,14 @@ Each haplotype matching algorithm has various version implementations. Each vers
 * 2_4: `GBWT`, `FastLocate`, `FastLCP`, and `CompText`.
 
 # Purpose of this repository
-This repository has two primary purposes. First, it is provided for readers of the paper who wish to view the implementation. Second, the classes/indexes/queries implemented here may be reused in other code. 
-## Archival
+This repository has two primary purposes. First, it is provided for readers of the paper who wish to view the implementation, and reproduce the results of the paper. Second, the classes/indexes/queries implemented here may be reused in other code. 
+## Archival and Reproduction of Experiments
 The code used to perform the experiments in the paper are provided in [/test/](/test/). 
 * [generateIndices.cpp](/test/generateIndices.cpp) takes as input a base name and an integer $N$. It reads the `GBWT` with the base name, then removes $N$ random haplotypes. Finally, it builds the `GBWT`, the `FastLocate`, and all indexes implemented here for the trimmed dataset. Finally, it writes all removed paths and built indexes to the disk.
 * [doTest.cpp](/test/doTest.cpp) takes as input data generated by [generateIndices.cpp](/test/generateIndices.cpp) and a `GBWT` equivalent to the trimmed `GBWT` but with document array samples. For each path removed from the original `GBWT`, it performs each numbered version of set maximal and long match query. Each query is timed and times are written to cout. Whether the outputs match or not is also written.
+* Running `make 1000GGenerate` will generate indices needed for reproduction. It will take the 1000G Chromosome 21 dataset (stored as a bidirectional GBWT) in [chr21.gbwt](/toyData/1000G/chr21.gbwt) and remove 100 random haplotypes. The haplotypes will be stored to disk and various structures are built and written to disk.
+* Running `make 1000GTest` will run the experiments as run in the paper. The indices built by 1000GGenerate will be loaded and then queried with varying versions of set maximal match and long match query.
+* Any work that uses the 1000G dataset should cite their paper: [https://doi.org/10.1038/nature15393](https://doi.org/10.1038/nature15393).
 
  Finally, the code used to verify the correctness of the queries and structures is provided in [verifyStructuresAndQueries.cpp](/test/verifyStructuresAndQueries.cpp). This code takes as input a `GBWT`, its associated `FastLocate` structure, and an integer $N$. Then, it builds `FastLCP`, `lf_gbwt::GBWT`, and `CompText` indexes on the provided data. Then it prints info from the built structures. Then it performs set maximal match and long match queries. Finally, it performs the following $N$ times:
 1. A random path-string is generated.
@@ -56,8 +59,23 @@ The following header files contain implementation of the queries.
 * [setMaximalMatchQuery.h](/include/setMaximalMatchQuery.h): Set maximal match query versions.
 * [longMatchQuery.h](/include/longMatchQuery.h): Long match query versions. 
 # Compilation
-Compilation of code including the header files provided in this repository requires the use of the GBWT library (https://github.com/jltsiren/gbwt). The specific version this code was built on is available at https://github.com/jltsiren/gbwt/blob/0bfeb0723bdc71db075aacf99a77704769d56a55. Follow the instructions in the GBWT readme to compile the GBWT library. The GBWT library (and its dependency, vgteam's fork of sdsl-lite) must be linked in order to compile code that uses header files from this repository. Finally note, the requirements are the same as that of the GBWT library: (C++14, OpenMP).
+Compilation of code including the header files provided in this repository requires the use of the GBWT library (https://github.com/jltsiren/gbwt). The specific version this code was built on is available at https://github.com/jltsiren/gbwt/blob/0bfeb0723bdc71db075aacf99a77704769d56a55. Follow the instructions in the GBWT readme to compile the GBWT library. The GBWT library (and its dependency, [vgteam's fork of sdsl-lite](https://github.com/vgteam/sdsl-lite)) must be linked in order to compile code that uses header files from this repository. Finally note, the requirements are the same as that of the GBWT library: (C++14, OpenMP).
 
 Sample datasets are provided in [/toyData/indexes](/toyData/indexes). The raw paths for these datasets are in [/toyData/raw/](/toyData/raw). 
 
-Running `make` in the [/test/](/test/) directory will compile binaries for each code program described in [Archival](#archival). Running `make test` will run basic tests by verifying structures and performing the paper experiment for the small datasets provided in [/toyData/](/toyData/). Note, `libDir`, `libIncDir`, and `gbwtDir` should be set to the directory that contains the compiled gbwt and sdsl libraries, their header files, and the gbwt binaries respectively.
+Running `make` in the [/test/](/test/) directory will compile binaries for each code program described in [Archival](#archival). Running `make test` will run basic tests by verifying structures and performing the paper experiment for the small datasets provided in [/toyData/](/toyData/). Note, `SDSL_DIR` should be set to the SDSL directory before compilation.
+
+## Simple Compilation
+1. In an empty directory `mkdir GBWT_AND_QUERY; cd GBWT_AND_QUERY`
+2. Clone all repos.
+   *  `git clone https://github.com/jltsiren/gbwt/blob/0bfeb0723bdc71db075aacf99a77704769d56a55`
+   *  `git clone https://github.com/ucfcbb/GBWT-Query`
+   *  `git clone https://github.com/vgteam/sdsl-lite`
+3. Installation of prereqs locally
+   *  `cd sdsl-lite`
+   *  `./install.sh ../`
+   *  `cd ../gbwt`
+   *  `./install.sh ../`
+4.  Run 1000G Experiment
+   *  `cd ../GBWT-Query/test`
+   *  `make 1000GGenerate 1000GTest`
