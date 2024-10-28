@@ -63,7 +63,7 @@ Compilation of code including the header files provided in this repository requi
 
 Sample datasets are provided in [/toyData/indexes](/toyData/indexes). The raw paths for these datasets are in [/toyData/raw/](/toyData/raw). 
 
-Running `make` in the [/test/](/test/) directory will compile binaries for each code program described in [Archival](#archival). Running `make test` will run basic tests by verifying structures and performing the paper experiment for the small datasets provided in [/toyData/](/toyData/). Note, `SDSL_DIR` should be set to the SDSL directory before compilation.
+Running `make` in the [/test/](/test/) directory will compile binaries for each code program described in [Archival](#archival). Running `make test` will run basic tests by verifying structures and performing the paper experiment for the small datasets provided in [/toyData/](/toyData/). Note, `SDSL_DIR` in the Makefile should be set to the SDSL directory before compilation. `gbwtDir` in the Makefile should be set to the directory that contains the build_gbwt binary for generateIndices to work correctly. 
 
 ## Simple Compilation
 1. In an empty directory `mkdir GBWT_AND_QUERY; cd GBWT_AND_QUERY`
