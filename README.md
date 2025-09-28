@@ -79,3 +79,7 @@ Running `make` in the [/test/](/test/) directory will compile binaries for each 
 4.  Run 1000G Experiment
    *  `cd ../GBWT-Query/test`
    *  `make 1000GGenerate 1000GTest`
+
+
+### Note: Franco
+Testing performance 1kG- 
