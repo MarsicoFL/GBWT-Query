@@ -2,7 +2,7 @@
 
 GBWT-Query provides the data structures and algorithms required to interrogate GBWT haplotype indexes, with a focus on identifying shared haplotypes directly on pangenome graphs. Besides the set maximal and long match query implementations from the accompanying paper, we bundle `ibdCaller`, a CLI that scans every haplotype in a GBWT and reports long shared substrings as candidate identity-by-descent (IBD) segments.
 
-The query algorithms implemented here are described in “Haplotype Matching with GBWT for Pangenome Graphs” by Sanaullah *et al.* (2024; see publication for DOI). Please cite that work when publishing results obtained with this repository.
+The query algorithms implemented here is from “Haplotype Matching with GBWT for Pangenome Graphs” by Sanaullah *et al.* (2024; see publication for DOI). 
 
 ## IBD exploration on a GBWT pangenome
 - **What it does** `ibdCaller` walks every haplotype stored in the GBWT, computes long shared matches using the query engines in this repository, and emits them as putative IBD segments.
