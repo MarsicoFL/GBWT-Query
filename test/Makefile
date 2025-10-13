@@ -70,10 +70,10 @@ Llength = 4
 
 .PHONY: all clean rebuild test
 
-all: doTest generateIndices verifyStructuresAndQueries
+all: doTest generateIndices verifyStructuresAndQueries ibdCaller
 
 clean: 
-	rm doTest generateIndices verifyStructuresAndQueries
+	rm doTest generateIndices verifyStructuresAndQueries ibdCaller
 
 rebuild: clean all
 
@@ -126,3 +126,6 @@ generateIndices: $(headers) generateIndices.cpp
 
 verifyStructuresAndQueries: $(headers) verifyStructuresAndQueries.cpp
 	$(CXX) $(CXXFLAGS) -o verifyStructuresAndQueries verifyStructuresAndQueries.cpp $(LDFLAGS) $(LDLIBS) 
+
+ibdCaller: $(headers) ibdCaller.cpp
+	$(CXX) $(CXXFLAGS) -o ibdCaller ibdCaller.cpp $(LDFLAGS) $(LDLIBS)

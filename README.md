@@ -1,10 +1,35 @@
 # GBWT-Query
 
-Provides haplotype matching capabilities on the GBWT. Implements long match and set maximal match query on the GBWT. 
+GBWT-Query provides the data structures and algorithms required to interrogate GBWT haplotype indexes, with a focus on identifying shared haplotypes directly on pangenome graphs. Besides the set maximal and long match query implementations from the accompanying paper, we bundle `ibdCaller`, a CLI that scans every haplotype in a GBWT and reports long shared substrings as candidate identity-by-descent (IBD) segments.
 
 Related paper: "Haplotype Matching with GBWT for Pangenome Graphs," by Ahsan Sanaullah, Seba Villalobos, Degui Zhi, and Shaojie Zhang. DOI: 
 
 Contact Author: Ahsan Sanaullah (ahsan.sanaullah@ucf.edu)
+
+## IBD exploration on a GBWT pangenome
+- **What it does** `ibdCaller` walks every haplotype stored in the GBWT, computes long shared matches using the query engines in this repository, and emits them as putative IBD segments.
+- **Input requirements** A GBWT file plus the auxiliary indexes (`FastLocate`, `FastLCP`, `lf_gbwt::GBWT`, `CompText`). If the auxiliary structures are missing, `ibdCaller` will build them in-memory from the GBWT so you can prototype immediately.
+- **Output interpretation** Results are written as TSV (`hap1_id  hap2_id  hap1_start  hap2_start  length_nodes`). Coordinates are counts of GBWT nodes along the forward haplotypes; map them back to graph coordinates with the GBWT metadata utilities or the graph used to create the index.
+- **Scope and caveats** Only forward-orientation threads are reported; reverse hits can be recovered by re-running `ibdCaller` on a reverse GBWT or by adapting the tool. Segment lengths are measured in GBWT nodes rather than nucleotides, so projecting to sequence space requires external tooling (GBZ, ODGI, VG, etc.). Versions 3, 4, and 2_4 assume a bidirectional GBWT.
+
+## Quickstart
+1. **Install dependencies** (installs will live one directory above the repos):
+   ```bash
+   git clone https://github.com/vgteam/sdsl-lite
+   git clone https://github.com/jltsiren/gbwt
+   cd sdsl-lite && ./install.sh .. && cd ../gbwt && ./install.sh ..
+   ```
+   This places headers in `../include`, static libraries in `../lib`, and the GBWT utilities in `../gbwt/bin`.
+2. **Build GBWT-Query tools**:
+   ```bash
+   cd GBWT-Query/test
+   make ibdCaller          # or just `make` to build every helper
+   ```
+3. **Call IBD segments on the sample dataset** (long matches ≥4 nodes in the bundled bidirectional example):
+   ```bash
+   ./ibdCaller ../toyData/indexes/bi_fig1/bi_fig1 4 --version 4 --output bi_fig1_ibd.tsv --verbose
+   ```
+   For small experiments the auxiliary indexes will be built in-memory. For large cohorts keep the generated `.ri`, `.flcp`, `.lfgbwt`, and `.comptext` files on disk to avoid rebuilding work.
 
 # Implemented Indexes
 1. `FastLCP`: Augmentation of FastLocate of that adds the locatePrev and LCP computation capabilities.
@@ -58,12 +83,25 @@ The following header files contain implementation of the queries.
 * [querySupport.h](/include/querySupport.h): General purpose support for both set maximal and long match queries.
 * [setMaximalMatchQuery.h](/include/setMaximalMatchQuery.h): Set maximal match query versions.
 * [longMatchQuery.h](/include/longMatchQuery.h): Long match query versions. 
+
+## IBD workflow with `ibdCaller`
+- **Prepare indexes** `ibdCaller` works with just the GBWT file; when auxiliary indexes are missing it builds them in-memory. For production runs keep the generated `*.fastlocate`, `*.fastlcp`, `*.lfgbwt`, and `*.comptext` artifacts on disk to avoid rebuilding.
+- **Build and run** Inside `test/`, run `make ibdCaller` and invoke the binary with the shared basename and the minimum segment length (in GBWT node count):
+
+```bash
+cd test
+make ibdCaller
+./ibdCaller ../toyData/indexes/bi_fig1/bi_fig1 50 --version 4 --output bi_fig1_ibd.tsv
+```
+- **Inspect results** Output is tab-delimited with header `hap1_id  hap2_id  hap1_start  hap2_start  length_nodes`. The caller reports one line per forward-orientation segment of length ≥ `min_length`. Hap IDs refer to internal GBWT sequence identifiers; use the GBWT metadata utilities (`gbwt::Metadata`) or `build_gbwt --list-paths` to translate them to sample / contig labels when available.
+- **Iterate** Tune `--max-haps` to restrict processing to the first N haplotypes, and switch `--version` between 2, 3, 4, or 24 depending on which index combination you have available. Versions 3/4/2_4 require a bidirectional GBWT and leverage `lf_gbwt` + `CompText` to accelerate long block extensions.
+- **Post-process** Merge or filter segments with your favourite tooling (e.g. pandas, awk, Rust) and project them back to sequence coordinates using the graph that produced the GBWT. Reverse-orientation matches are skipped by default; adapt the code if bi-directional segments are required.
 # Compilation
 Compilation of code including the header files provided in this repository requires the use of the GBWT library (https://github.com/jltsiren/gbwt). The specific version this code was built on is available at https://github.com/jltsiren/gbwt/blob/0bfeb0723bdc71db075aacf99a77704769d56a55. Follow the instructions in the GBWT readme to compile the GBWT library. The GBWT library (and its dependency, [vgteam's fork of sdsl-lite](https://github.com/vgteam/sdsl-lite)) must be linked in order to compile code that uses header files from this repository. Finally note, the requirements are the same as that of the GBWT library: (C++14, OpenMP).
 
 Sample datasets are provided in [/toyData/indexes](/toyData/indexes). The raw paths for these datasets are in [/toyData/raw/](/toyData/raw). 
 
-Running `make` in the [/test/](/test/) directory will compile binaries for each code program described in [Archival](#archival). Running `make test` will run basic tests by verifying structures and performing the paper experiment for the small datasets provided in [/toyData/](/toyData/). Note, `SDSL_DIR` in the Makefile should be set to the SDSL directory before compilation. `gbwtDir` in the Makefile should be set to the directory that contains the build_gbwt binary for generateIndices to work correctly. 
+Running `make` in the [/test/](/test/) directory will compile the binaries described in [Archival](#archival-and-reproduction-of-experiments) together with `ibdCaller`. Use `make ibdCaller` to build just the IBD caller. Running `make test` will run basic tests by verifying structures and performing the paper experiment for the small datasets provided in [/toyData/](/toyData/). Note, `SDSL_DIR` in the Makefile should be set to the SDSL directory before compilation. `gbwtDir` in the Makefile should be set to the directory that contains the build_gbwt binary for generateIndices to work correctly. 
 
 ## Simple Compilation
 1. In an empty directory `mkdir GBWT_AND_QUERY; cd GBWT_AND_QUERY`
@@ -79,6 +117,10 @@ Running `make` in the [/test/](/test/) directory will compile binaries for each 
 4.  Run 1000G Experiment
    *  `cd ../GBWT-Query/test`
    *  `make 1000GGenerate 1000GTest`
+5.  Optional: call IBD segments on the generated indexes
+   *  `cd ../GBWT-Query/test`
+   *  `make ibdCaller`
+   *  `./ibdCaller ../toyData/indexes/1000G/chr21Trimmed 5000 --version 4 --output chr21_ibd.tsv`
 
 
 ### Note: Franco
