@@ -1,6 +1,6 @@
-# GBWT-Query
+# ibdCaller
 
-GBWT-Query packages the GBWT-compatible indexes and queries needed to detect long shared haplotype segments directly on pangenome graphs. The primary entry point is `ibdCaller`, a CLI that enumerates candidate identity-by-descent (IBD) segments between all haplotypes stored in a GBWT.
+ The primary entry point is `ibdCaller`, a CLI that enumerates candidate identity-by-descent (IBD) segments between all haplotypes stored in a GBWT. It is based on GBWT-Query package (\url{https://pmc.ncbi.nlm.nih.gov/articles/PMC11838520/}), the GBWT-compatible indexes and queries needed to detect long shared haplotype segments directly on pangenome graphs.
 
 ## Overview
 - `ibdCaller` scans each forward-orientation haplotype, computes long shared matches, and writes a TSV report (`hap1_id  hap2_id  hap1_start  hap2_start  length_nodes`).
@@ -27,5 +27,3 @@ For production runs keep the generated `*.fastlocate`, `*.fastlcp`, `*.lfgbwt`, 
 - `test/ibdCaller.cpp`: command-line driver for IBD discovery.
 - `test/generateIndices.cpp`, `test/doTest.cpp`, `test/verifyStructuresAndQueries.cpp`: legacy helpers for regenerating GBWT-derived indexes and validating query correctness.
 
-## Citation
-The algorithms powering these tools are described in “Haplotype Matching with GBWT for Pangenome Graphs” by Sanaullah *et al.* (2024; see publication for DOI). Please cite that work when publishing results derived from this repository.
